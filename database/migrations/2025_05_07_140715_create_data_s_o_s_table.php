@@ -1,0 +1,32 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('data_so', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('master_kontrak_pengiriman_id')->nullable()->constrained('master_kontrak_pengiriman')->onDelete('cascade');
+            $table->date('tgl')->nullable();
+            $table->string('nomor')->nullable();
+            $table->bigInteger('qty')->nullable();
+            $table->bigInteger('sisa')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('data_so');
+    }
+};
