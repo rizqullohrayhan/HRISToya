@@ -54,7 +54,7 @@
                                         <td>{{ $user->kantor ? $user->kantor->name : '' }}</td>
                                         <td>
                                             <div class="form-button-action">
-                                                <div class="btn-group dropdown">
+                                                <div class="btn-group dropleft">
                                                     <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                                         <i class="fa fa-align-left"></i>
                                                     </button>
@@ -63,6 +63,9 @@
                                                             @can('edit user')
                                                             <a href="{{ route('user.edit', $user->id) }}" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
                                                                 <i class="fa fa-edit"></i>&nbsp;Edit
+                                                            </a>
+                                                            <a href="{{ route('user.edit.permission', $user->id) }}" title="Permission" class="btn btn-link btn-primary" data-original-title="Permission">
+                                                                <i class="fa fa-lock"></i>&nbsp;Permission
                                                             </a>
                                                             @endcan
                                                             @can('delete user')

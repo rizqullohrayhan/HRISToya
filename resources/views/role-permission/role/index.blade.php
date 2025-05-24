@@ -51,7 +51,7 @@
                                                             <a href="{{ route('role.edit', $role->id) }}" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
                                                                 <i class="fa fa-edit"></i>&nbsp;Edit
                                                             </a>
-                                                            <a href="{{ route('role.edit.permission', $role->id) }}" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
+                                                            <a href="{{ route('role.edit.permission', $role->id) }}" title="Permission" class="btn btn-link btn-primary" data-original-title="Permission">
                                                                 <i class="fa fa-lock"></i>&nbsp;Permission
                                                             </a>
                                                             @endcan

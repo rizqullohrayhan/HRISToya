@@ -244,6 +244,8 @@ Route::middleware(['auth'])->group(function () {
     Route::group(['middleware' => ['permission:view user']], function () {
         Route::resource('user', UserController::class)->except('destroy');
         Route::post('user/{user}/delete', [UserController::class, 'destroy'])->name('user.destroy');
+        Route::get('/user/{id}/edit-permission', [UserController::class, 'edit_permission'])->name('user.edit.permission');
+        Route::put('/user/{id}/update-permission', [UserController::class, 'update_permission'])->name('user.update.permission');
     });
     Route::group(['middleware' => ['permission:view team']], function () {
         Route::resource('team', TeamController::class)->except('destroy');

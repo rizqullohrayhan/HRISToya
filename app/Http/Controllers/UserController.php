@@ -11,6 +11,7 @@ use Intervention\Image\ImageManager;
 use Intervention\Image\Drivers\Gd\Driver;
 use App\Http\Controllers\Controller;
 use App\Models\Kantor;
+use Spatie\Permission\Models\Permission;
 
 class UserController extends Controller
 {
@@ -201,4 +202,32 @@ class UserController extends Controller
         $user->delete();
         return response()->json(['status' => 'success', 'message' => 'User Berhasil dihapus'], 200);
     }
+
+    public function edit_permission(string $id)
+    {
+        $user = User::findOrFail($id);
+        $permissions = Permission::all();
+
+        $data = [
+            'user' => $user,
+            'permissions' => $permissions,
+        ];
+
+        return view('role-permission.user.edit_permission', $data);
+    }
+
+    public function update_permission(Request $request, string $id)
+    {
+        $request->validate([
+            'permissions' => 'array|required',
+        ]);
+
+        $user = User::findOrFail($id);
+
+        // Hapus semua permission langsung, lalu tambahkan yang baru
+        $user->syncPermissions($request->permissions);
+
+        return redirect()->route('user.index')->with('success', 'User permission berhasil diubah');
+    }
+
 }
