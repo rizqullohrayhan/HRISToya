@@ -30,22 +30,34 @@ class SuratIjinController extends Controller
      */
     public function index()
     {
-        return view('surat-ijin.index');
+        $today = \Carbon\Carbon::today();
+        if ($today->day < 28) {
+            $start = $today->copy()->subMonthNoOverflow()->day(28); // 28 bulan lalu
+            $end = $today->copy()->day(27);                          // 27 bulan ini
+        } else {
+            $start = $today->copy()->day(28);                        // 28 bulan ini
+            $end = $today->copy()->addMonthNoOverflow()->day(27);    // 27 bulan depan
+        }
+
+        $data = [
+            'start' => $start->format('d/m/Y'),
+            'end' => $end->format('d/m/Y'),
+        ];
+        return view('surat-ijin.index', $data);
     }
 
     public function data(Request $request)
     {
-        $tahun = $request->tahun ? $request->tahun : date('Y');
+        [$start, $end] = $this->parseDateRange($request);
         $authUser = Auth::user();
+
+        $surat = SuratIjin::with(['user'])->whereBetween('tgl_awal', [$start, $end]);
+
         if ($authUser->hasRole('ADM')) {
-            $surat = SuratIjin::with(['user'])
-                    ->whereYear('tgl_awal', $tahun)
-                    ->get();
+            $surat = $surat->get();
         } else {
             $teamId = $authUser->team_id;
-            $surat = SuratIjin::with(['user'])
-                    ->whereYear('tgl_awal', $tahun)
-                    ->whereHas('user', function ($query) use ($teamId) {
+            $surat = $surat->whereHas('user', function ($query) use ($teamId) {
                         $query->where('team_id', $teamId);
                     })
                     ->get();
@@ -53,58 +65,11 @@ class SuratIjinController extends Controller
 
         return DataTables::of($surat)
             ->addIndexColumn()
-            ->addColumn('action', function ($row) use ($authUser) {
-                $isAdmin = $authUser->hasRole('ADM');
-                $isOwnerOrCreator = $authUser->id == $row->dibuat_id || $authUser->id == $row->created_by;
-                $isEditable = is_null($row->diperiksa_at);
-                $btn = '
-                            <a href="' . route('ijin.show', $row->id) . '" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
-                                <i class="fa fa-eye"></i>&nbsp;Show
-                            </a>
-                        ';
-                if (
-                    $isAdmin ||
-                    ($authUser->hasPermissionTo('edit surat ijin') && $isOwnerOrCreator && $isEditable)
-                ) {
-                    $btn .= '
-                                <a href="' . route('ijin.edit', $row->id) . '" title="Edit" class="btn btn-link btn-warning" data-original-title="Edit">
-                                    <i class="fa fa-edit"></i>&nbsp;Edit
-                                </a>
-                            ';
-                }
-                if (
-                    $isAdmin ||
-                    ($authUser->hasPermissionTo('delete surat ijin') && $isOwnerOrCreator && $isEditable)
-                ) {
-                    $btn .= '
-                                <button type="button" data-id="' . $row->id . '" title="Hapus" class="btn btn-link btn-danger btn-destroy" data-original-title="Remove">
-                                    <i class="fa fa-times"></i>&nbsp;Hapus
-                                </button>
-                            ';
-                }
-                return '
-                        <div class="form-button-action">
-                            <div class="btn-group dropend">
-                                <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    <i class="fa fa-align-left"></i>
-                                </button>
-                                <ul class="dropdown-menu" role="menu">
-                                    ' . $btn . '
-                                </ul>
-                            </div>
-                        </div>
-                    ';
-            })
+            ->addColumn('action', fn($row) => $this->buildActionButtons($row, $authUser))
             ->editColumn('tanggal', function ($row) {
                 $tgl_awal = Carbon::parse($row->tgl_awal)->format('d/m/Y');
                 $tgl_akhir = Carbon::parse($row->tgl_akhir)->format('d/m/Y');
-                if ($tgl_awal == $tgl_akhir) {
-                    $return = $tgl_awal;
-                } else {
-                    $return = $tgl_awal .' - '. $tgl_akhir;
-                }
-
-                return $return;
+                return $tgl_awal === $tgl_akhir ? $tgl_awal : "$tgl_awal - $tgl_akhir";
             })
             ->addColumn('jam', function ($row) {
                 $jam_awal = Carbon::parse($row->tgl_awal)->format('H:i');
@@ -113,6 +78,49 @@ class SuratIjinController extends Controller
             })
             ->rawColumns(['action', 'tanggal', 'jam'])
             ->make(true);
+    }
+
+    private function parseDateRange(Request $request): array
+    {
+        try {
+            $start = Carbon::createFromFormat('d/m/Y', $request->startdate)->format('Y-m-d');
+            $end = Carbon::createFromFormat('d/m/Y', $request->enddate)->format('Y-m-d');
+        } catch (\Exception $e) {
+            abort(422, 'Format tanggal tidak valid');
+        }
+
+        return [$start, $end];
+    }
+
+    private function buildActionButtons($row, $authUser): string
+    {
+        $isAdmin = $authUser->hasRole('ADM');
+        $isOwnerOrCreator = $authUser->id == $row->dibuat_id || $authUser->id == $row->created_by;
+        $isEditable = is_null($row->diperiksa_at);
+        $buttons = '';
+
+        $buttons .= '<a href="'. route('ijin.show', $row->id) .'" class="btn btn-link btn-primary"><i class="fa fa-eye"></i> Show</a>';
+
+        if ($isAdmin || ($authUser->can('edit surat ijin') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<a href="'. route('ijin.edit', $row->id) .'" class="btn btn-link btn-warning"><i class="fa fa-edit"></i> Edit</a>';
+        }
+
+        if ($isAdmin || ($authUser->can('delete surat ijin') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<button type="button" data-id="'. $row->id .'" class="btn btn-link btn-danger btn-destroy"><i class="fa fa-times"></i> Hapus</button>';
+        }
+
+        return '
+            <div class="form-button-action">
+                <div class="btn-group dropend">
+                    <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fa fa-align-left"></i>
+                    </button>
+                    <ul class="dropdown-menu" role="menu">
+                        '.$buttons.'
+                    </ul>
+                </div>
+            </div>
+        ';
     }
 
     /**

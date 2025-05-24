@@ -8,6 +8,17 @@ use Illuminate\Http\Request;
 class MataUangController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view mata uang')->only(['index', 'show']);
+        $this->middleware('permission:add mata uang')->only(['create', 'store']);
+        $this->middleware('permission:edit mata uang')->only(['edit', 'update']);
+        $this->middleware('permission:delete mata uang')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()

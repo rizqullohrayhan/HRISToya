@@ -59,7 +59,7 @@
                                         type="text"
                                         class="form-control"
                                         id="start-date"
-                                        placeholder="Pilih tanggal"
+                                        value="{{ $start->format('d/m/Y') }}"
                                         readonly
                                     />
                                 </div>
@@ -71,7 +71,7 @@
                                         type="text"
                                         class="form-control"
                                         id="end-date"
-                                        placeholder="Pilih tanggal"
+                                        value="{{ $end->format('d/m/Y') }}"
                                         readonly
                                     />
                                 </div>
@@ -160,8 +160,8 @@
         changeYear: true,
     });
     let user = '';
-    let start = '';
-    let end = '';
+    let start = $( "#start-date" ).val();
+    let end = $( "#end-date" ).val();
     const urlData = '{{route("aktivitas.data")}}';
     const initializeDataTable = (user, start, end) => {
         return $('#table-datatable').DataTable({

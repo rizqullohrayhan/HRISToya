@@ -35,12 +35,12 @@
         }
         h1 {
             text-align: center;
-            font-size: 24px;
+            font-size: 20px;
             margin: 0;
             font-weight: bold;
         }
         .content {
-            margin-top: 10px;
+            /* margin-top: 10px; */
         }
         .info {
             display: flex;
@@ -232,7 +232,7 @@
         </table>
     </div>
 </div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
     let url = "{{ route('dinasluar.show', $surat->id) }}";
     new QRCode("qrcode", { text: url, width: 65, height: 65 });

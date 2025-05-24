@@ -14,6 +14,17 @@ class KendalaPengirimanController extends Controller
     use KontrakPengirimanTrait;
 
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view kendala pengiriman')->only(['index', 'getKendalaPengirimanData', 'show', 'buildActionButtons']);
+        $this->middleware('permission:add kendala pengiriman')->only(['create', 'store']);
+        $this->middleware('permission:edit kendala pengiriman')->only(['edit', 'inlineEdit', 'update']);
+        $this->middleware('permission:delete kendala pengiriman')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
@@ -60,7 +71,7 @@ class KendalaPengirimanController extends Controller
         //     ';
         // }
 
-        if ($authUser->hasRole('ADM') || $authUser->hasPermissionTo('delete kendala pengiriman')) {
+        if ($authUser->hasRole('ADM') || $authUser->can('delete kendala pengiriman')) {
             $btn .= '
                 <button type="button" data-id="' . $row->id . '" title="Hapus Kendala" class="btn btn-link btn-danger btn-destroy">
                     <i class="fa fa-times"></i>&nbsp;Hapus

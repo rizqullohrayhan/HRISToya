@@ -26,9 +26,9 @@ class VoucherController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('permission:view voucher')->only(['index', 'show']);
-        $this->middleware('permission:add voucher')->only(['create', 'store', 'generateFilename']);
-        $this->middleware('permission:edit voucher')->only(['edit', 'update', 'generateFilename']);
+        $this->middleware('permission:view voucher')->only(['index', 'data', 'show', 'otoritas', 'cetak']);
+        $this->middleware('permission:add voucher')->only(['create', 'store', 'otoritas', 'generateFilename']);
+        $this->middleware('permission:edit voucher')->only(['edit', 'update', 'otoritas', 'generateFilename']);
         $this->middleware('permission:delete voucher')->only('destroy');
     }
 
@@ -37,75 +37,89 @@ class VoucherController extends Controller
      */
     public function index()
     {
-        $voucher = Voucher::with(['statusVoucher', 'bankCode', 'rekanan', 'tipeVoucher', 'user', 'reviewer', 'bookkeeper', 'approver', 'creator'])->get();
+        $today = \Carbon\Carbon::today();
+        if ($today->day < 28) {
+            $start = $today->copy()->subMonthNoOverflow()->day(28); // 28 bulan lalu
+            $end = $today->copy()->day(27);                          // 27 bulan ini
+        } else {
+            $start = $today->copy()->day(28);                        // 28 bulan ini
+            $end = $today->copy()->addMonthNoOverflow()->day(27);    // 27 bulan depan
+        }
+
         $data = [
-            'vouchers' => $voucher,
+            'start' => $start->format('d/m/Y'),
+            'end' => $end->format('d/m/Y'),
         ];
         return view('voucher.index', $data);
     }
 
     public function data(Request $request)
     {
-        $tahun = $request->tahun ? $request->tahun : date('Y');
+        [$start, $end] = $this->parseDateRange($request);
         $authUser = Auth::user();
+
+        $surat = Voucher::with(['statusVoucher', 'bankCode', 'rekanan', 'tipeVoucher'])->whereBetween('tanggal', [$start, $end]);
+
         if ($authUser->hasRole('ADM')) {
-            $surat = Voucher::with(['statusVoucher', 'bankCode', 'rekanan', 'tipeVoucher'])
-                    ->whereYear('tanggal', $tahun)
-                    ->get();
+            $surat = $surat->get();
         } else {
-            $surat = Voucher::with(['statusVoucher', 'bankCode', 'rekanan', 'tipeVoucher'])
-                    ->where('user_id', $authUser->id)
-                    ->orWhere('created_by', $authUser->id)
-                    ->whereYear('tanggal', $tahun)
-                    ->get();
+            $surat = $surat->where(function ($query) use ($authUser) {
+                    $query->where('user_id', $authUser->id)
+                        ->orWhere('created_by', $authUser->id);
+                })
+                ->get();
         }
 
         return DataTables::of($surat)
             ->addIndexColumn()
-            ->addColumn('action', function ($row) use ($authUser) {
-                $btn = '
-                            <a href="' . route('voucher.show', $row->id) . '" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
-                                <i class="fa fa-eye"></i>&nbsp;Show
-                            </a>
-                        ';
-                if (
-                    ($authUser->hasPermissionTo('edit voucher') && ($authUser->id == $row->user_id || $authUser->id == $row->created_by) && is_null($row->reviewed_at)) ||
-                    $authUser->hasRole('ADM')
-                ) {
-                    $btn .= '
-                                <a href="' . route('voucher.edit', $row->id) . '" title="Edit" class="btn btn-link btn-warning" data-original-title="Edit">
-                                    <i class="fa fa-edit"></i>&nbsp;Edit
-                                </a>
-                            ';
-                }
-                if (
-                    ($authUser->hasPermissionTo('delete voucher') && ($authUser->id == $row->user_id || $authUser->id == $row->created_by) && is_null($row->reviewed_at)) ||
-                    $authUser->hasRole('ADM')
-                ) {
-                    $btn .= '
-                                <button type="button" data-id="' . $row->id . '" title="Hapus" class="btn btn-link btn-danger btn-destroy" data-original-title="Remove">
-                                    <i class="fa fa-times"></i>&nbsp;Hapus
-                                </button>
-                            ';
-                }
-                return '
-                        <div class="form-button-action">
-                            <div class="btn-group dropend">
-                                <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    <i class="fa fa-align-left"></i>
-                                </button>
-                                <ul class="dropdown-menu" role="menu">
-                                    ' . $btn . '
-                                </ul>
-                            </div>
-                        </div>
-                    ';
-            })
-            ->editColumn('tanggal', function ($row) {
-                return Carbon::parse($row->tanggal)->format('d/m/Y');
-            })
+            ->addColumn('action', fn($row) => $this->buildActionButtons($row, $authUser))
+            ->editColumn('tanggal', fn($row) => Carbon::parse($row->tanggal)->format('d/m/Y'))
             ->rawColumns(['action', 'tanggal'])
             ->make(true);
+    }
+
+    private function parseDateRange(Request $request): array
+    {
+        try {
+            $start = Carbon::createFromFormat('d/m/Y', $request->startdate)->format('Y-m-d');
+            $end = Carbon::createFromFormat('d/m/Y', $request->enddate)->format('Y-m-d');
+        } catch (\Exception $e) {
+            abort(422, 'Format tanggal tidak valid');
+        }
+
+        return [$start, $end];
+    }
+
+    private function buildActionButtons($row, $authUser): string
+    {
+        $buttons = '';
+
+        $buttons .= '<a href="'. route('voucher.show', $row->id) .'" class="btn btn-link btn-primary"><i class="fa fa-eye"></i> Show</a>';
+
+        if (($authUser->can('edit voucher') && ($authUser->id == $row->user_id || $authUser->id == $row->created_by) && is_null($row->reviewed_at)) ||
+            $authUser->hasRole('ADM'))
+        {
+            $buttons .= '<a href="'. route('voucher.edit', $row->id) .'" class="btn btn-link btn-warning"><i class="fa fa-edit"></i> Edit</a>';
+        }
+
+        if (($authUser->can('delete voucher') && ($authUser->id == $row->user_id || $authUser->id == $row->created_by) && is_null($row->reviewed_at)) ||
+            $authUser->hasRole('ADM'))
+        {
+            $buttons .= '<button type="button" data-id="'. $row->id .'" class="btn btn-link btn-danger btn-destroy"><i class="fa fa-times"></i> Hapus</button>';
+        }
+
+        return '
+            <div class="form-button-action">
+                <div class="btn-group dropend">
+                    <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fa fa-align-left"></i>
+                    </button>
+                    <ul class="dropdown-menu" role="menu">
+                        '.$buttons.'
+                    </ul>
+                </div>
+            </div>
+        ';
     }
 
     /**

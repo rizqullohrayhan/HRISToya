@@ -34,7 +34,7 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="row">
+                        {{-- <div class="row">
                             <div class="col-md-2">
                                 <div class="form-group">
                                     <label for="smallSelect">Pilih Tahun</label>
@@ -42,7 +42,42 @@
                                     </select>
                                 </div>
                             </div>
+                        </div> --}}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="startdate">Tanggal Awal</label>
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        id="start-date"
+                                        value="{{ $start }}"
+                                        readonly
+                                    />
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="enddate">Tanggal Akhir</label>
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        id="end-date"
+                                        value="{{ $end }}"
+                                        readonly
+                                    />
+                                </div>
+                            </div>
                         </div>
+                        <div class="d-grid justify-content-center">
+                            <button class="btn btn-primary" type="button" id="filter">Proses Filter</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
                         <div class="table-responsive">
                             <table id="table-datatable" class="display table table-striped table-hover" >
                                 <thead>
@@ -53,6 +88,7 @@
                                         <th>Jam</th>
                                         <th>Kendaraan</th>
                                         <th>No Polisi</th>
+                                        <th>Penerima</th>
                                     </tr>
                                 </thead>
                                 <tfoot>
@@ -63,6 +99,7 @@
                                         <th>Jam</th>
                                         <th>Kendaraan</th>
                                         <th>No Polisi</th>
+                                        <th>Penerima</th>
                                     </tr>
                                 </tfoot>
                                 <tbody>

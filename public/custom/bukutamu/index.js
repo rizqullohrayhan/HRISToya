@@ -1,7 +1,19 @@
 $(document).ready(function() {
+    $( "#start-date" ).datepicker({
+        dateFormat: 'dd/mm/yy',
+        changeMonth: true,
+        changeYear: true,
+    });
+    $( "#end-date" ).datepicker({
+        dateFormat: 'dd/mm/yy',
+        changeMonth: true,
+        changeYear: true,
+    });
+
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     let start = $('#start-date').val();
     let end = $('#end-date').val();
+    const urlData = window.Laravel.dataUrl;
     let html5QrCode;
     const qrRegionId = "qr-reader";
 
@@ -10,14 +22,7 @@ $(document).ready(function() {
             processing: true,
             serverSide: true,
             destroy: true,
-            ajax: {
-                url: window.Laravel.dataUrl,
-                type: 'GET',
-                data: {
-                    start: start,
-                    end: end,
-                }
-            },
+            ajax: `${urlData}?startdate=${start}&enddate=${end}`,
             columns: [
                 {
                     data: "DT_RowIndex",
@@ -50,19 +55,10 @@ $(document).ready(function() {
 
     let table = initializeDataTable(start, end);
 
-    $('#start-date').flatpickr({
-        dateFormat: "d/m/Y",
-        onChange: function(selectedDates, dateStr) {
-            start = dateStr;
-            table = initializeDataTable(start, end);
-        },
-    });
-    $('#end-date').flatpickr({
-        dateFormat: "d/m/Y",
-        onChange: function(selectedDates, dateStr) {
-            end = dateStr;
-            table = initializeDataTable(start, end);
-        },
+    $('#filter').on('click', function () {
+        start = encodeURIComponent($('#start-date').val() ?? '');
+        end = encodeURIComponent($('#end-date').val() ?? '');
+        table = initializeDataTable(start, end);
     });
 
     $('#table-datatable').on('click', '.btn-destroy', function(){

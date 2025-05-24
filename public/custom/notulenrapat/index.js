@@ -1,27 +1,40 @@
 const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
-let dateDropdown = document.getElementById('date-dropdown');
+// let dateDropdown = document.getElementById('date-dropdown');
 
-let currentYear = new Date().getFullYear();
-let tahun = currentYear;
-let earliestYear = 2020;
+// let currentYear = new Date().getFullYear();
+// let tahun = currentYear;
+// let earliestYear = 2020;
 
-while (currentYear >= earliestYear) {
-    let dateOption = document.createElement('option');
-    dateOption.text = currentYear;
-    dateOption.value = currentYear;
-    dateDropdown.add(dateOption);
-    currentYear -= 1;
-}
+// while (currentYear >= earliestYear) {
+//     let dateOption = document.createElement('option');
+//     dateOption.text = currentYear;
+//     dateOption.value = currentYear;
+//     dateDropdown.add(dateOption);
+//     currentYear -= 1;
+// }
 
-let urlData = window.Laravel.dataUrl;
+$( "#start-date" ).datepicker({
+    dateFormat: 'dd/mm/yy',
+    changeMonth: true,
+    changeYear: true,
+});
+$( "#end-date" ).datepicker({
+    dateFormat: 'dd/mm/yy',
+    changeMonth: true,
+    changeYear: true,
+});
 
-const initializeDataTable = (tahun) => {
+let start = $( "#start-date" ).val();
+let end = $( "#end-date" ).val();
+const urlData = window.Laravel.dataUrl;
+
+const initializeDataTable = (start, end) => {
     return $('#table-datatable').DataTable({
         processing: true,
         serverSide: true,
         destroy: true,
-        ajax: `${urlData}?tahun=${tahun}`,
+        ajax: `${urlData}?startdate=${start}&enddate=${end}`,
         columns: [
             {
                 data: "DT_RowIndex",
@@ -36,18 +49,23 @@ const initializeDataTable = (tahun) => {
             {data: "unit_kerja"},
             {data: "pimpinan"},
             {data: "agenda_plain"},
-            // {data: "action", visible: false},
         ],
         order: [[1, "desc"]],
     });
 }
 
-let table = initializeDataTable(tahun);
+let table = initializeDataTable(start, end);
 
-$('#date-dropdown').on('change', function () {
-    tahun = $(this).val();
-    table = initializeDataTable(tahun);
-})
+// $('#date-dropdown').on('change', function () {
+//     tahun = $(this).val();
+//     table = initializeDataTable(tahun);
+// })
+
+$('#filter').on('click', function () {
+    start = encodeURIComponent($('#start-date').val() ?? '');
+    end = encodeURIComponent($('#end-date').val() ?? '');
+    table = initializeDataTable(start, end);
+});
 
 $('#table-datatable').on('click', '.btn-destroy', function(){
     swal({

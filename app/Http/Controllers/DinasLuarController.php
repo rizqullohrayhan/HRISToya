@@ -15,25 +15,40 @@ use Yajra\DataTables\DataTables;
 class DinasLuarController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view dinas luar')->only(['index', 'data', 'show', 'otoritas', 'cetak']);
+        $this->middleware('permission:add dinas luar')->only(['create', 'store', 'otoritas']);
+        $this->middleware('permission:edit dinas luar')->only(['edit', 'update', 'otoritas', 'allowUpdate']);
+        $this->middleware('permission:delete dinas luar')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        return view('dinasluar.index');
+        $data = [
+            'start' => Carbon::now()->startOfMonth()->format('d/m/Y'),
+            'end' => Carbon::now()->endOfMonth()->format('d/m/Y'),
+        ];
+        return view('dinasluar.index', $data);
     }
 
     public function data(Request $request)
     {
-        $tahun = $request->tahun ? $request->tahun : date('Y');
+        [$start, $end] = $this->parseDateRange($request);
         $authUser = Auth::user();
+
+        $surat = DinasLuar::with('user')->whereBetween('berangkat', [$start, $end]);
+
         if ($authUser->hasRole('ADM')) {
-            $surat = DinasLuar::whereYear('berangkat', $tahun)
-                    ->get();
+            $surat = $surat->get();
         } else {
             $teamId = $authUser->team_id;
-            $surat = DinasLuar::with(['user'])
-                    ->whereYear('berangkat', $tahun)
-                    ->whereHas('user', function ($query) use ($teamId) {
+            $surat = $surat->whereHas('user', function ($query) use ($teamId) {
                         $query->where('team_id', $teamId);
                     })
                     ->get();
@@ -41,48 +56,7 @@ class DinasLuarController extends Controller
 
         return DataTables::of($surat)
             ->addIndexColumn()
-            ->addColumn('action', function ($row) use ($authUser) {
-                $isAdmin = $authUser->hasRole('ADM');
-                $isOwnerOrCreator = $authUser->id == $row->dibuat_id || $authUser->id == $row->created_by;
-                $isEditable = is_null($row->diperiksa_at);
-                $btn = '
-                            <a href="' . route('dinasluar.show', $row->id) . '" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
-                                <i class="fa fa-eye"></i>&nbsp;Show
-                            </a>
-                        ';
-                if (
-                    $isAdmin ||
-                    ($authUser->hasPermissionTo('edit dinas luar') && $isOwnerOrCreator && $isEditable)
-                ) {
-                    $btn .= '
-                                <a href="' . route('dinasluar.edit', $row->id) . '" title="Edit" class="btn btn-link btn-warning" data-original-title="Edit">
-                                    <i class="fa fa-edit"></i>&nbsp;Edit
-                                </a>
-                            ';
-                }
-                if (
-                    $isAdmin ||
-                    ($authUser->hasPermissionTo('delete dinas luar') && $isOwnerOrCreator && $isEditable)
-                ) {
-                    $btn .= '
-                                <button type="button" data-id="' . $row->id . '" title="Hapus" class="btn btn-link btn-danger btn-destroy" data-original-title="Remove">
-                                    <i class="fa fa-times"></i>&nbsp;Hapus
-                                </button>
-                            ';
-                }
-                return '
-                            <div class="form-button-action">
-                                <div class="btn-group dropend">
-                                    <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        <i class="fa fa-align-left"></i>
-                                    </button>
-                                    <ul class="dropdown-menu" role="menu">
-                                        ' . $btn . '
-                                    </ul>
-                                </div>
-                            </div>
-                        ';
-            })
+            ->addColumn('action', fn($row) => $this->buildActionButtons($row, $authUser))
             ->addColumn('jam', function ($row) {
                 $berangkat = Carbon::parse($row->berangkat)->format('H:i');
                 $kembali = Carbon::parse($row->kembali)->format('H:i');
@@ -90,6 +64,49 @@ class DinasLuarController extends Controller
             })
             ->rawColumns(['action', 'jam'])
             ->make(true);
+    }
+
+    private function parseDateRange(Request $request): array
+    {
+        try {
+            $start = Carbon::createFromFormat('d/m/Y', $request->startdate)->format('Y-m-d');
+            $end = Carbon::createFromFormat('d/m/Y', $request->enddate)->format('Y-m-d');
+        } catch (\Exception $e) {
+            abort(422, 'Format tanggal tidak valid');
+        }
+
+        return [$start, $end];
+    }
+
+    private function buildActionButtons($row, $authUser): string
+    {
+        $isAdmin = $authUser->hasRole('ADM');
+        $isOwnerOrCreator = $authUser->id == $row->dibuat_id || $authUser->id == $row->created_by;
+        $isEditable = is_null($row->diperiksa_at);
+        $buttons = '';
+
+        $buttons .= '<a href="'. route('dinasluar.show', $row->id) .'" class="btn btn-link btn-primary"><i class="fa fa-eye"></i> Show</a>';
+
+        if ($isAdmin || ($authUser->can('edit dinas luar') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<a href="'. route('dinasluar.edit', $row->id) .'" class="btn btn-link btn-warning"><i class="fa fa-edit"></i> Edit</a>';
+        }
+
+        if ($isAdmin || ($authUser->can('delete dinas luar') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<button type="button" data-id="'. $row->id .'" class="btn btn-link btn-danger btn-destroy"><i class="fa fa-times"></i> Hapus</button>';
+        }
+
+        return '
+            <div class="form-button-action">
+                <div class="btn-group dropend">
+                    <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fa fa-align-left"></i>
+                    </button>
+                    <ul class="dropdown-menu" role="menu">
+                        '.$buttons.'
+                    </ul>
+                </div>
+            </div>
+        ';
     }
 
     /**

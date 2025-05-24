@@ -11,8 +11,18 @@ use Illuminate\Support\Facades\Auth;
 
 class DataSOController extends Controller
 {
-
     use KontrakPengirimanTrait;
+
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view data so')->only(['index', 'getDataSO', 'show', 'buildActionButtons']);
+        $this->middleware('permission:add data so')->only(['create', 'store']);
+        $this->middleware('permission:edit data so')->only(['edit', 'inlineEdit', 'update']);
+        $this->middleware('permission:delete data so')->only('destroy');
+    }
 
     /**
      * Display a listing of the resource.
@@ -73,7 +83,7 @@ class DataSOController extends Controller
         //     ';
         // }
 
-        if ($authUser->hasRole('ADM') || $authUser->hasPermissionTo('delete data so')) {
+        if ($authUser->hasRole('ADM') || $authUser->can('delete data so')) {
             $btn .= '
                 <button type="button" data-id="' . $row->id . '" title="Hapus Kontrak" class="btn btn-link btn-danger btn-destroy">
                     <i class="fa fa-times"></i>&nbsp;Hapus

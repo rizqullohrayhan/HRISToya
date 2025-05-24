@@ -56,34 +56,22 @@
                     </div>
                 </li>
                 @endcanany
-                @canany(['view voucher'])
-                <li class="nav-item {{ (Request::is('voucher*')) ? 'active' : '' }}">
-                    <a data-bs-toggle="collapse" href="#keuangan">
+                @can('view voucher')
+                <li class="nav-item {{ Request::is('voucher*') ? 'active' : '' }}">
+                    <a href="{{route('voucher.index')}}">
                         <i class="fas fa-file-invoice-dollar"></i>
-                        <p>Keuangan</p>
-                        <span class="caret"></span>
+                        <p>Pengajuan Voucher</p>
                     </a>
-                    <div class="collapse" id="keuangan">
-                        <ul class="nav nav-collapse">
-                            @can('view voucher')
-                            <li>
-                                <a href="{{ route('voucher.index') }}">
-                                    <span class="sub-item">Pengajuan Voucher</span>
-                                </a>
-                            </li>
-                            @endcan
-                        </ul>
-                    </div>
                 </li>
-                @endcanany
+                @endcan
                 @canany(['view surat ijin', 'view tugas keluar', 'view dinas luar', 'view dinas luar kota', 'view cuti'])
                 <li class="nav-item {{ (Request::is('ijin*') || Request::is('tugas-keluar*') || Request::is('dinasluar*') || Request::is('cuti*')) ? 'active' : '' }}">
-                    <a data-bs-toggle="collapse" href="#hcm">
+                    <a data-bs-toggle="collapse" href="#surat">
                         <i class="fas fa-clipboard-check"></i>
-                        <p>HCM</p>
+                        <p>Persuratan</p>
                         <span class="caret"></span>
                     </a>
-                    <div class="collapse" id="hcm">
+                    <div class="collapse" id="surat">
                         <ul class="nav nav-collapse">
                             @can('view surat ijin')
                             <li>
@@ -124,51 +112,11 @@
                     </div>
                 </li>
                 @endcanany
-                @canany(['view ijin masuk pabrik'])
-                <li class="nav-item {{ (Request::is('ijinpabrik*')) ? 'active' : '' }}">
-                    <a data-bs-toggle="collapse" href="#gudang">
-                        <i class="fas fa-boxes"></i>
-                        <p>Gudang</p>
-                        <span class="caret"></span>
-                    </a>
-                    <div class="collapse" id="gudang">
-                        <ul class="nav nav-collapse">
-                            @can('view ijin masuk pabrik')
-                            <li>
-                                <a href="{{ route('ijinpabrik.index') }}">
-                                    <span class="sub-item">Ijin Masuk Pabrik</span>
-                                </a>
-                            </li>
-                            @endcan
-                        </ul>
-                    </div>
-                </li>
-                @endcanany
-                @canany(['view kontrak pengiriman'])
-                <li class="nav-item {{ (Request::is('pengiriman/kontrak*')) ? 'active' : '' }}">
-                    <a data-bs-toggle="collapse" href="#logistik">
-                        <i class="fas fa-clipboard-check"></i>
-                        <p>Logistik</p>
-                        <span class="caret"></span>
-                    </a>
-                    <div class="collapse" id="logistik">
-                        <ul class="nav nav-collapse">
-                            @can('view kontrak pengiriman')
-                            <li>
-                                <a href="{{ route('kontrak.index') }}">
-                                    <span class="sub-item">Kontrak Pengiriman</span>
-                                </a>
-                            </li>
-                            @endcan
-                        </ul>
-                    </div>
-                </li>
-                @endcanany
-                @can('view buku tamu')
-                <li class="nav-item {{ Request::is('bukutamu*') ? 'active' : '' }}">
-                    <a href="{{route('bukutamu.index')}}">
-                        <i class="fas fa-address-book"></i>
-                        <p>Buku Tamu</p>
+                @can('view ijin masuk pabrik')
+                <li class="nav-item {{ Request::is('ijinpabrik*') ? 'active' : '' }}">
+                    <a href="{{route('ijinpabrik.index')}}">
+                        <i class="fas fa-receipt"></i>
+                        <p>Ijin Masuk Pabrik</p>
                     </a>
                 </li>
                 @endcan
@@ -177,6 +125,14 @@
                     <a href="{{route('notulen_rapat.index')}}">
                         <i class="fas fa-receipt"></i>
                         <p>Notulen Rapat</p>
+                    </a>
+                </li>
+                @endcan
+                @can('view kontrak pengiriman')
+                <li class="nav-item {{ Request::is('pengiriman/kontrak*') ? 'active' : '' }}">
+                    <a href="{{route('kontrak.index')}}">
+                        <i class="fas fa-receipt"></i>
+                        <p>Kontrak Pengiriman</p>
                     </a>
                 </li>
                 @endcan

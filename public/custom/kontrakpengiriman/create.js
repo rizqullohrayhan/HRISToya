@@ -1,6 +1,8 @@
 $(document).ready(function() {
     $(".flatpicker").flatpickr({
-        dateFormat: "d/m/Y",
+        dateFormat: "Y-m-d", // yang dikirim ke server
+        altInput: true,
+        altFormat: "d/m/Y", // yang dilihat user
     });
 
     // Inisialisasi AutoNumeric

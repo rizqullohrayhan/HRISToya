@@ -36,35 +36,21 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="row mb-2">
+                        <div class="row">
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="start-date">Tanggal Awal</label>
-                                    <input
-                                        type="text"
-                                        class="form-control flatpicker"
-                                        id="start-date"
-                                        placeholder="Pilih tanggal"
-                                        value="{{ date('01/m/Y') }}"
-                                        readonly
-                                    />
+                                    <input type="text" class="form-control" id="start-date" value="{{ $start }}" readonly/>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="end-date">Tanggal Akhir</label>
-                                    <input
-                                        type="text"
-                                        class="form-control flatpicker"
-                                        id="end-date"
-                                        placeholder="Pilih tanggal"
-                                        value="{{ date('t/m/Y') }}"
-                                        readonly
-                                    />
+                                    <input type="text" class="form-control" id="end-date" value="{{ $end }}" readonly/>
                                 </div>
                             </div>
                         </div>
-                        <div class="d-flex justify-content-between">
+                        <div class="d-flex flex-wrap gap-2 justify-content-between">
                             <button type="button" class="btn btn-secondary" onclick="cetak()"><i class="icon-printer"></i>&nbsp;Cetak</button>
                             <button type="button" id="filter" class="btn btn-primary">Proses Filter</button>
                             <button type="button" id="scanqr" class="btn btn-success"><i class="fas fa-qrcode"></i>&nbsp;Scan QR</button>

@@ -10,6 +10,17 @@ use Illuminate\Support\Facades\Auth;
 class MengetahuiKontrakPengirimanController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view mengetahui pengiriman')->only(['index', 'getMengetahuiPengirimanData', 'show', 'buildActionButtons']);
+        $this->middleware('permission:add mengetahui pengiriman')->only(['create', 'store']);
+        $this->middleware('permission:edit mengetahui pengiriman')->only(['edit', 'inlineEdit', 'update']);
+        $this->middleware('permission:delete mengetahui pengiriman')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
@@ -51,7 +62,7 @@ class MengetahuiKontrakPengirimanController extends Controller
         //     ';
         // }
 
-        if ($authUser->hasRole('ADM') || $authUser->hasPermissionTo('delete mengetahui pengiriman')) {
+        if ($authUser->hasRole('ADM') || $authUser->can('delete mengetahui pengiriman')) {
             $btn .= '
                 <button type="button" data-id="' . $row->id . '" title="Hapus Kendala" class="btn btn-link btn-danger btn-destroy">
                     <i class="fa fa-times"></i>&nbsp;Hapus
@@ -99,7 +110,7 @@ class MengetahuiKontrakPengirimanController extends Controller
 
         $mengetahui = MengetahuiKontrakPengiriman::where('master_kontrak_pengiriman_id', $request->kontrakId)->count();
 
-        if ($mengetahui >= 5) {
+        if ($mengetahui == 5) {
             return response()->json([
                 'status' => 'error',
                 'message' => 'Data mengetahui sudah mencapai batas maksimal',

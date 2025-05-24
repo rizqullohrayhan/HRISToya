@@ -21,8 +21,8 @@ return new class extends Migration
             $table->string('menemui')->nullable();
             $table->time('jam_awal')->nullable();
             $table->time('jam_akhir')->nullable();
-            $table->time('jam_datang')->nullable();
-            $table->time('jam_pulang')->nullable();
+            $table->dateTime('datang')->nullable();
+            $table->dateTime('pulang')->nullable();
             $table->uuid('token')->unique()->nullable();
             $table->string('telp')->nullable();
             $table->string('id_card')->nullable();

@@ -17,6 +17,17 @@ class RencanaPengirimanController extends Controller
     use KontrakPengirimanTrait;
 
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view rencana pengiriman')->only(['index', 'getRencanaPengirimanData', 'show', 'buildActionButtons', 'cetak']);
+        $this->middleware('permission:add rencana pengiriman')->only(['create', 'store']);
+        $this->middleware('permission:edit rencana pengiriman')->only(['edit', 'inlineEdit', 'update']);
+        $this->middleware('permission:delete rencana pengiriman')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
@@ -70,7 +81,7 @@ class RencanaPengirimanController extends Controller
 
         $btn = '';
 
-        if ($authUser->hasRole('ADM') || $authUser->hasPermissionTo('delete rencana pengiriman')) {
+        if ($authUser->hasRole('ADM') || $authUser->can('delete rencana pengiriman')) {
             $btn .= '
                 <button type="button" data-id="' . $row->id . '" title="Hapus Rencana" class="btn btn-link btn-danger btn-destroy">
                     <i class="fa fa-times"></i>&nbsp;Hapus

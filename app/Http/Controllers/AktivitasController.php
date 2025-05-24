@@ -32,7 +32,19 @@ class AktivitasController extends Controller
      */
     public function index(Request $request)
     {
-        $data = [];
+        $today = \Carbon\Carbon::today();
+        if ($today->day < 28) {
+            $start = $today->copy()->subMonthNoOverflow()->day(28); // 28 bulan lalu
+            $end = $today->copy()->day(27);                          // 27 bulan ini
+        } else {
+            $start = $today->copy()->day(28);                        // 28 bulan ini
+            $end = $today->copy()->addMonthNoOverflow()->day(27);    // 27 bulan depan
+        }
+
+        $data = [
+            'start' => $start,
+            'end' => $end,
+        ];
         if (Auth::user()->hasRole('ADM')) {
             $data['users'] = User::get();
         } elseif (Auth::user()->hasPermissionTo('view other aktivitas')) {
@@ -46,7 +58,6 @@ class AktivitasController extends Controller
         $authUser = Auth::user();
         $data = Aktivitas::with('user', 'rekanan', 'tipeAktivitas', 'caraAktivitas');
         if (!is_null($request->startdate) && !is_null($request->enddate)) {
-            // dd($request->input());
             $start = Carbon::createFromFormat('d/m/Y', $request->startdate)->format('Y-m-d');
             $end = Carbon::createFromFormat('d/m/Y', $request->enddate)->format('Y-m-d');
             $data = $data->whereBetween('tanggal', [$start, $end]);

@@ -8,6 +8,17 @@ use Illuminate\Http\Request;
 class TipeVoucherController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view tipe voucher')->only(['index', 'show']);
+        $this->middleware('permission:add tipe voucher')->only(['create', 'store']);
+        $this->middleware('permission:edit tipe voucher')->only(['edit', 'update']);
+        $this->middleware('permission:delete tipe voucher')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()

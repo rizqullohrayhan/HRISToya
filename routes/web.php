@@ -69,7 +69,8 @@ Route::middleware(['auth'])->group(function () {
         Route::post('bukutamu/{bukutamu}/delete', [BukuTamuController::class, 'destroy'])->name('bukutamu.destroy');
         Route::get('bukutamu/get/data', [BukuTamuController::class, 'get_data'])->name('bukutamu.data');
         Route::get('bukutamu/{bukutamu}/accept', [BukuTamuController::class, 'accept'])->name('bukutamu.accept');
-        Route::get('bukutamu/{bukutamu}/confirm', [BukuTamuController::class, 'confirm'])->name('bukutamu.confirm');
+        Route::post('bukutamu/{bukutamu}/confirm', [BukuTamuController::class, 'confirm'])->name('bukutamu.confirm');
+        Route::get('bukutamu/{bukutamu}/foto', [BukuTamuController::class, 'getFoto'])->name('bukutamu.foto');
         Route::get('bukutamu/download/file/{bukutamu}', [AktivitasController::class, 'download'])->name('bukutamu.file');
     });
 

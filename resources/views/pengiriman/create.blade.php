@@ -115,6 +115,17 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
+                                    <div class="form-group @error('tahun') has-error @enderror">
+                                        <label for="tahun">Tahun</label>
+                                        <input type="number" class="form-control" name="tahun" id="tahun" value="{{ old('tahun') }}">
+                                        @error('tahun')
+                                        <small class="form-text text-muted text-danger">
+                                            {{ $message }}
+                                        </small>
+                                        @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
                                     <div class="form-group @error('tgl_mulai_kirim') has-error @enderror">
                                         <label for="tgl_mulai_kirim">Tanggal Mulai Kirim<span class="text-danger">*</span></label>
                                         <input type="text" class="form-control flatpicker" id="tgl_mulai_kirim" name="tgl_mulai_kirim" value="{{ old('tgl_mulai_kirim') }}" readonly>
@@ -212,7 +223,7 @@
                                                     <div class="col-xxl-3 col-md-6 mb-3">
                                                         <label for="kebun_{{ $index }}_kontrak" class="form-label">Kontrak<span class="text-danger">*</span></label>
                                                         <div class="input-group">
-                                                            <input type="text" class="form-control kontrak-kebun input-number" name="kebun[{{ $index }}][kontrak]" id="kebun_{{ $index }}_kontrak" value="{{ old('kebun.'.$index.'.kontrak') }}">
+                                                            <input type="text" class="form-control kontrak-kebun input-number" name="kebun[{{ $index }}][kontrak]" id="kebun_{{ $index }}_kontrak" value="{{ old('kebun.'.$index.'.kontrak') }}" autocomplete="off">
                                                             <span class="input-group-text">Kg</span>
                                                         </div>
                                                     </div>

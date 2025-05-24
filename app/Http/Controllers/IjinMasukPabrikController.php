@@ -20,7 +20,7 @@ class IjinMasukPabrikController extends Controller
      */
     public function __construct()
     {
-        $this->middleware('permission:view ijin masuk pabrik')->only(['index', 'data', 'show', 'cetak', 'showKTP']);
+        $this->middleware('permission:view ijin masuk pabrik')->only(['index', 'data', 'show', 'otoritas', 'cetak', 'showKTP']);
         $this->middleware('permission:add ijin masuk pabrik')->only(['create', 'store', 'otoritas']);
         $this->middleware('permission:edit ijin masuk pabrik')->only(['edit', 'update', 'otoritas', 'allowUpdate']);
         $this->middleware('permission:delete ijin masuk pabrik')->only('destroy');
@@ -31,66 +31,31 @@ class IjinMasukPabrikController extends Controller
      */
     public function index()
     {
-        return view('ijinmasukpabrik.index');
+        $data = [
+            'start' => Carbon::now()->startOfMonth()->format('d/m/Y'),
+            'end' => Carbon::now()->endOfMonth()->format('d/m/Y'),
+        ];
+        return view('ijinmasukpabrik.index', $data);
     }
 
     public function data(Request $request)
     {
-        $tahun = $request->tahun ? $request->tahun : date('Y');
+        [$start, $end] = $this->parseDateRange($request);
         $authUser = Auth::user();
+
+        $surat = IjinMasukPabrik::whereBetween('created_at', [$start, $end]);
+
         if ($authUser->hasRole('ADM')) {
-            $surat = IjinMasukPabrik::whereYear('created_at', $tahun)->get();
+            $surat = $surat->get();
         } else {
-            $surat = IjinMasukPabrik::where('dibuat_id', $authUser->id)
+            $surat = $surat->where('dibuat_id', $authUser->id)
                 ->orWhere('created_by', $authUser->id)
-                ->whereYear('created_at', $tahun)
                 ->get();
         }
 
         return DataTables::of($surat)
             ->addIndexColumn()
-            ->addColumn('action', function ($row) use ($authUser) {
-                $isAdmin = $authUser->hasRole('ADM');
-                $isOwnerOrCreator = $authUser->id == $row->dibuat_id || $authUser->id == $row->created_by;
-                $isEditable = is_null($row->disetujui_at);
-                $btn = '
-                            <a href="' . route('ijinpabrik.show', $row->id) . '" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
-                                <i class="fa fa-eye"></i>&nbsp;Show
-                            </a>
-                        ';
-                if (
-                    $isAdmin ||
-                    ($authUser->hasPermissionTo('edit ijin masuk pabrik') && $isOwnerOrCreator && $isEditable)
-                ) {
-                    $btn .= '
-                                <a href="' . route('ijinpabrik.edit', $row->id) . '" title="Edit" class="btn btn-link btn-warning" data-original-title="Edit">
-                                    <i class="fa fa-edit"></i>&nbsp;Edit
-                                </a>
-                            ';
-                }
-                if (
-                    $isAdmin ||
-                    ($authUser->hasPermissionTo('delete ijin masuk pabrik') && $isOwnerOrCreator && $isEditable)
-                ) {
-                    $btn .= '
-                                <button type="button" data-id="' . $row->id . '" title="Hapus" class="btn btn-link btn-danger btn-destroy" data-original-title="Remove">
-                                    <i class="fa fa-times"></i>&nbsp;Hapus
-                                </button>
-                            ';
-                }
-                return '
-                        <div class="form-button-action">
-                            <div class="btn-group dropend">
-                                <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                    <i class="fa fa-align-left"></i>
-                                </button>
-                                <ul class="dropdown-menu" role="menu">
-                                    ' . $btn . '
-                                </ul>
-                            </div>
-                        </div>
-                    ';
-            })
+            ->addColumn('action', fn($row) => $this->buildActionButtons($row, $authUser))
             ->editColumn('masuk', function ($row) {
                 $tgl_awal = Carbon::parse($row->masuk)->format('d/m/Y H:i');
                 $tgl_akhir = Carbon::parse($row->keluar)->format('d/m/Y H:i');
@@ -98,6 +63,49 @@ class IjinMasukPabrikController extends Controller
             })
             ->rawColumns(['action', 'masuk'])
             ->make(true);
+    }
+
+    private function parseDateRange(Request $request): array
+    {
+        try {
+            $start = Carbon::createFromFormat('d/m/Y', $request->startdate)->format('Y-m-d');
+            $end = Carbon::createFromFormat('d/m/Y', $request->enddate)->format('Y-m-d');
+        } catch (\Exception $e) {
+            abort(422, 'Format tanggal tidak valid');
+        }
+
+        return [$start, $end];
+    }
+
+    private function buildActionButtons($row, $authUser): string
+    {
+        $isAdmin = $authUser->hasRole('ADM');
+        $isOwnerOrCreator = $authUser->id == $row->dibuat_id || $authUser->id == $row->created_by;
+        $isEditable = is_null($row->disetujui_at);
+        $buttons = '';
+
+        $buttons .= '<a href="'. route('ijinpabrik.show', $row->id) .'" class="btn btn-link btn-primary"><i class="fa fa-eye"></i> Show</a>';
+
+        if ($isAdmin || ($authUser->can('edit ijin masuk pabrik') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<a href="'. route('ijinpabrik.edit', $row->id) .'" class="btn btn-link btn-warning"><i class="fa fa-edit"></i> Edit</a>';
+        }
+
+        if ($isAdmin || ($authUser->can('delete ijin masuk pabrik') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<button type="button" data-id="'. $row->id .'" class="btn btn-link btn-danger btn-destroy"><i class="fa fa-times"></i> Hapus</button>';
+        }
+
+        return '
+            <div class="form-button-action">
+                <div class="btn-group dropend">
+                    <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fa fa-align-left"></i>
+                    </button>
+                    <ul class="dropdown-menu" role="menu">
+                        '.$buttons.'
+                    </ul>
+                </div>
+            </div>
+        ';
     }
 
     /**
@@ -365,8 +373,8 @@ class IjinMasukPabrikController extends Controller
                 $destinationPath = 'foto_kendaraan/' . $imageName;
                 $manager = new ImageManager(new Driver());
                 $image = $manager->read($image);
-                if (Storage::disk('local')->exists('foto_kendaraan/' . $surat->ktp)) {
-                    Storage::disk('local')->delete('foto_kendaraan/' . $surat->ktp);
+                if (Storage::disk('local')->exists('foto_kendaraan/' . $surat->foto_kendaraan)) {
+                    Storage::disk('local')->delete('foto_kendaraan/' . $surat->foto_kendaraan);
                 }
                 Storage::disk('local')->put($destinationPath, $image->encodeByExtension('jpeg', quality: 20));
                 $update['foto_kendaraan'] = $imageName;
@@ -378,8 +386,8 @@ class IjinMasukPabrikController extends Controller
                 $destinationPath = 'foto_sim/' . $imageName;
                 $manager = new ImageManager(new Driver());
                 $image = $manager->read($image);
-                if (Storage::disk('local')->exists('foto_sim/' . $surat->ktp)) {
-                    Storage::disk('local')->delete('foto_sim/' . $surat->ktp);
+                if (Storage::disk('local')->exists('foto_sim/' . $surat->foto_sim)) {
+                    Storage::disk('local')->delete('foto_sim/' . $surat->foto_sim);
                 }
                 Storage::disk('local')->put($destinationPath, $image->encodeByExtension('jpeg', quality: 20));
                 $update['foto_sim'] = $imageName;

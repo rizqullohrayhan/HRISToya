@@ -1,5 +1,25 @@
 @extends('template.main')
 
+@section('css')
+    <style>
+        .td-wrap {
+            white-space: normal !important;
+            word-wrap: break-word;
+        }
+        /* table {
+            table-layout: fixed;
+        } */
+        .dataTable > thead > tr > th[class*="sort"]:before,
+        .dataTable > thead > tr > th[class*="sort"]:after {
+            content: "" !important;
+        }
+        table.table > thead > tr > th,
+        table.table > tbody > tr > td {
+            padding: 0px 10px !important;
+        }
+    </style>
+@endsection
+
 @section('content')
 <div class="container">
     <div class="page-inner">
@@ -31,29 +51,41 @@
                             </select>
                         </div>
                         @endcan
-                        {{-- <div class="row">
-                            <div class="col-md-5">
+                        <div class="row">
+                            <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="startdate">Tanggal Awal</label>
                                     <input
-                                        type="date"
-                                        class="form-control form-control"
-                                        id="startdate"
+                                        type="text"
+                                        class="form-control"
+                                        id="start-date"
+                                        value="{{ $start }}"
+                                        readonly
                                     />
                                 </div>
                             </div>
-                            <div class="col-md-5">
+                            <div class="col-md-6">
                                 <div class="form-group">
                                     <label for="enddate">Tanggal Akhir</label>
                                     <input
-                                        type="date"
-                                        class="form-control form-control"
-                                        id="enddate"
+                                        type="text"
+                                        class="form-control"
+                                        id="end-date"
+                                        value="{{ $end }}"
+                                        readonly
                                     />
                                 </div>
                             </div>
-                            <div class="col-md-4"></div>
-                        </div> --}}
+                        </div>
+                        <div class="d-grid justify-content-center">
+                            <button class="btn btn-primary" type="button" id="filter">Proses Filter</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-body">
                         <div class="table-responsive">
                             <table id="table-datatable" class="display table table-striped table-hover" >
                                 <thead>
@@ -95,14 +127,27 @@
 
 @section('js')
 <script>
+    $( "#start-date" ).datepicker({
+        dateFormat: 'dd/mm/yy',
+        changeMonth: true,
+        changeYear: true,
+    });
+    $( "#end-date" ).datepicker({
+        dateFormat: 'dd/mm/yy',
+        changeMonth: true,
+        changeYear: true,
+    });
+
     let user = $('#user').val()??'';
-    const initializeDataTable = (user) => {
+    let start = $( "#start-date" ).val();
+    let end = $( "#end-date" ).val();
+    const initializeDataTable = (user, start, end) => {
         let url = '{{route("absen.data")}}'
         return $('#table-datatable').DataTable({
             processing: true,
             serverSide: true,
             destroy: true,
-            ajax: `${url}?user=${user}`,
+            ajax: `${url}?user=${user}&startdate=${start}&enddate=${end}`,
             drawCallback: function() {
                 // Inisialisasi ulang tooltip setiap kali tabel digambar ulang
                 $('[data-bs-toggle="tooltip"]').tooltip();
@@ -127,7 +172,7 @@
         });
     }
 
-    let table = initializeDataTable(user);
+    let table = initializeDataTable(user, start, end);
 
     $('#table-datatable').on('click', '.desc-preview', function () {
         const $el = $(this);
@@ -143,9 +188,16 @@
         $el.html(newText);
     });
 
-    $('#user').change(function(){
-        table = initializeDataTable($(this).val());
+    $('#filter').on('click', function () {
+        user = $('#user').val()??'';
+        start = encodeURIComponent($('#start-date').val() ?? '');
+        end = encodeURIComponent($('#end-date').val() ?? '');
+        table = initializeDataTable(user, start, end);
     });
+
+    // $('#user').change(function(){
+    //     table = initializeDataTable($(this).val());
+    // });
 </script>
 
 @can('delete absen')

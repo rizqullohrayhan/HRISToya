@@ -8,6 +8,17 @@ use Illuminate\Http\Request;
 class TipeAktivitasController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view tipe aktivitas')->only(['index', 'show']);
+        $this->middleware('permission:add tipe aktivitas')->only(['create', 'store']);
+        $this->middleware('permission:edit tipe aktivitas')->only(['edit', 'update']);
+        $this->middleware('permission:delete tipe aktivitas')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()

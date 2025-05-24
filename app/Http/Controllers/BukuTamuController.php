@@ -4,26 +4,43 @@ namespace App\Http\Controllers;
 
 use App\Models\BukuTamu;
 use Carbon\Carbon;
-use Dotenv\Util\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
+use Intervention\Image\Drivers\Gd\Driver;
+use Intervention\Image\ImageManager;
 
 class BukuTamuController extends Controller
 {
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view buku tamu')->only(['index', 'get_data', 'show', 'accept', 'getFoto']);
+        $this->middleware('permission:add buku tamu')->only(['create', 'store']);
+        $this->middleware('permission:edit buku tamu')->only(['edit', 'update']);
+        $this->middleware('permission:delete buku tamu')->only('destroy');
+        $this->middleware('permission:confirm kedatangan tamu|confirm pulang tamu')->only(['accept', 'confirm', 'uploadFoto', 'deleteFoto', 'getFoto']);
+    }
+
     /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        return view('buku_tamu.index');
+        $data = [
+            'start' => Carbon::now()->startOfMonth()->format('d/m/Y'),
+            'end' => Carbon::now()->endOfMonth()->format('d/m/Y'),
+        ];
+        return view('buku_tamu.index' $data);
     }
 
     public function get_data(Request $request)
     {
-        $start = $request->start;
-        $end = $request->end;
+        $start = Carbon::createFromFormat('d/m/Y', $request->start)->format('Y-m-d');
+        $end = Carbon::createFromFormat('d/m/Y', $request->end)->format('Y-m-d');
+        [$start, $end] = $this->parseDateRange($request);
 
         $data = BukuTamu::whereBetween('tgl', [$start, $end])->get();
 
@@ -32,13 +49,20 @@ class BukuTamuController extends Controller
             ->addColumn('action', function ($row) {
                 $authUser = Auth::user();
                 $btn = '
-                            <a href="' . route('bukutamu.show', $row->id) . '" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
+                            <a href="' . route('bukutamu.show', $row->id) . '" title="Edit" class="btn btn-link btn-info" data-original-title="Edit">
                                 <i class="fa fa-eye"></i>&nbsp;Show
                             </a>
                         ';
+                if ($authUser->hasPermissionTo('view buku tamu') || $authUser->hasRole('ADM')) {
+                    $btn .= '
+                                <a href="' . route('bukutamu.accept', $row->token) . '" title="Konfirmasi" class="btn btn-link btn-success" data-original-title="Edit">
+                                    <i class="fa fa-check"></i>&nbsp;Konfirmasi
+                                </a>
+                            ';
+                }
                 if (($authUser->id == $row->created_by && $authUser->hasPermissionTo('edit buku tamu')) || $authUser->hasRole('ADM')) {
                     $btn .= '
-                                <a href="' . route('bukutamu.edit', $row->id) . '" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
+                                <a href="' . route('bukutamu.edit', $row->id) . '" title="Edit" class="btn btn-link btn-warning" data-original-title="Edit">
                                     <i class="fa fa-edit"></i>&nbsp;Edit
                                 </a>
                             ';
@@ -52,7 +76,7 @@ class BukuTamuController extends Controller
                 }
                 return '
                             <div class="form-button-action">
-                                <div class="btn-group dropdown">
+                                <div class="btn-group dropend">
                                     <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                         <i class="fa fa-align-left"></i>
                                     </button>
@@ -68,6 +92,49 @@ class BukuTamuController extends Controller
             })
             ->rawColumns(['action', 'tgl_show'])
             ->make(true);
+    }
+
+    private function parseDateRange(Request $request): array
+    {
+        try {
+            $start = Carbon::createFromFormat('d/m/Y', $request->startdate)->format('Y-m-d');
+            $end = Carbon::createFromFormat('d/m/Y', $request->enddate)->format('Y-m-d');
+        } catch (\Exception $e) {
+            abort(422, 'Format tanggal tidak valid');
+        }
+
+        return [$start, $end];
+    }
+
+    private function buildActionButtons($row, $authUser): string
+    {
+        $isAdmin = $authUser->hasRole('ADM');
+        $isOwnerOrCreator = $authUser->id == $row->dibuat_id || $authUser->id == $row->created_by;
+        $isEditable = is_null($row->diperiksa_at);
+        $buttons = '';
+
+        $buttons .= '<a href="'. route('dinasluar.show', $row->id) .'" class="btn btn-link btn-primary"><i class="fa fa-eye"></i> Show</a>';
+
+        if ($isAdmin || ($authUser->can('edit dinas luar') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<a href="'. route('dinasluar.edit', $row->id) .'" class="btn btn-link btn-warning"><i class="fa fa-edit"></i> Edit</a>';
+        }
+
+        if ($isAdmin || ($authUser->can('delete dinas luar') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<button type="button" data-id="'. $row->id .'" class="btn btn-link btn-danger btn-destroy"><i class="fa fa-times"></i> Hapus</button>';
+        }
+
+        return '
+            <div class="form-button-action">
+                <div class="btn-group dropend">
+                    <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fa fa-align-left"></i>
+                    </button>
+                    <ul class="dropdown-menu" role="menu">
+                        '.$buttons.'
+                    </ul>
+                </div>
+            </div>
+        ';
     }
 
     /**
@@ -183,30 +250,127 @@ class BukuTamuController extends Controller
         $data = [
             'bukuTamu' => $bukuTamu,
         ];
-        return view('bukuTamu.konfirmasi', $data);
+        return view('buku_tamu.konfirmasi', $data);
     }
 
     public function confirm(Request $request, string $token)
     {
         $bukuTamu = BukuTamu::where('token', $token)->firstOrFail();
-        $confirm =  $request->confirm;
+        $confirm = $request->confirm;
         if ($confirm == 'datang') {
             $request->validate([
-                'id_card' => ['required', 'image'],
-                'foto_diri' => ['required', 'image'],
-                'surat_pengantar' => ['nullable', 'image'],
-                'kendaraan_tampak_depan' => ['nullable', 'image'],
-                'kendaraan_tampak_belakang' => ['nullable', 'image'],
-                'kendaraan_tampak_samping_kanan' => ['nullable', 'image'],
-                'kendaraan_tampak_samping_kiri' => ['nullable', 'image'],
-                'foto_peralatan' => ['nullable', 'image'],
+                'id_card' => ['required', 'file', 'mimes:jpeg,jpg,png'],
+                'foto_diri' => ['required', 'file', 'mimes:jpeg,jpg,png'],
+                'surat_pengantar' => ['nullable', 'file', 'mimes:jpeg,jpg,png'],
+                'kendaraan_tampak_depan' => ['nullable', 'file', 'mimes:jpeg,jpg,png'],
+                'kendaraan_tampak_belakang' => ['nullable', 'file', 'mimes:jpeg,jpg,png'],
+                'kendaraan_tampak_samping_kanan' => ['nullable', 'file', 'mimes:jpeg,jpg,png'],
+                'kendaraan_tampak_samping_kiri' => ['nullable', 'file', 'mimes:jpeg,jpg,png'],
+                'foto_peralatan' => ['nullable', 'file', 'mimes:jpeg,jpg,png'],
+            ], [
+                'required' => ':attribute wajib diisi',
+                'mimes' => ':attribute harus format jpeg,jpg,png',
+                'file' => ':attribute harus berupa file',
+            ], [
+                'id_card' => 'Foto ID Card',
+                'foto_diri' => 'Foto Diri',
+                'surat_pengantar' => 'Surat Pengantar',
+                'kendaraan_tampak_depan' => 'Kendaraan Tampak Depan',
+                'kendaraan_tampak_belakang' => 'Kendaraan Tampak Belakang',
+                'kendaraan_tampak_samping_kanan' => 'Kendaraan Tampak Samping Kanan',
+                'kendaraan_tampak_samping_kiri' => 'Kendaraan Tampak Samping Kiri',
+                'foto_peralatan' => 'Foto Peralatan',
             ]);
         }
 
-        $data = [
-            'bukuTamu' => $bukuTamu,
-        ];
-        return view('bukuTamu.konfirmasi', $data);
+        $message = 'Kunjungan berhasil dikonfirmasi';
+
+        switch ($confirm) {
+            case 'datang':
+                $bukuTamu->id_card = $this->uploadFoto($request, $bukuTamu, 'id_card');
+                $bukuTamu->foto_diri = $this->uploadFoto($request, $bukuTamu, 'foto_diri');
+                $bukuTamu->surat_pengantar = $this->uploadFoto($request, $bukuTamu, 'surat_pengantar');
+                $bukuTamu->kendaraan_tampak_depan = $this->uploadFoto($request, $bukuTamu, 'kendaraan_tampak_depan');
+                $bukuTamu->kendaraan_tampak_belakang = $this->uploadFoto($request, $bukuTamu, 'kendaraan_tampak_belakang');
+                $bukuTamu->kendaraan_tampak_samping_kanan = $this->uploadFoto($request, $bukuTamu, 'kendaraan_tampak_samping_kanan');
+                $bukuTamu->kendaraan_tampak_samping_kiri = $this->uploadFoto($request, $bukuTamu, 'kendaraan_tampak_samping_kiri');
+                $bukuTamu->foto_peralatan = $this->uploadFoto($request, $bukuTamu, 'foto_peralatan');
+                $bukuTamu->datang = now();
+                $bukuTamu->datang_by = Auth::user()->id;
+                $bukuTamu->save();
+                $message = 'Kedatangan berhasil dikonfirmasi';
+                break;
+
+            case 'batal datang':
+                $bukuTamu->id_card = $this->deleteFoto($bukuTamu, 'id_card');
+                $bukuTamu->foto_diri = $this->deleteFoto($bukuTamu, 'foto_diri');
+                $bukuTamu->surat_pengantar = $this->deleteFoto($bukuTamu, 'surat_pengantar');
+                $bukuTamu->kendaraan_tampak_depan = $this->deleteFoto($bukuTamu, 'kendaraan_tampak_depan');
+                $bukuTamu->kendaraan_tampak_belakang = $this->deleteFoto($bukuTamu, 'kendaraan_tampak_belakang');
+                $bukuTamu->kendaraan_tampak_samping_kanan = $this->deleteFoto($bukuTamu, 'kendaraan_tampak_samping_kanan');
+                $bukuTamu->kendaraan_tampak_samping_kiri = $this->deleteFoto($bukuTamu, 'kendaraan_tampak_samping_kiri');
+                $bukuTamu->foto_peralatan = $this->deleteFoto($bukuTamu, 'foto_peralatan');
+                $bukuTamu->datang = null;
+                $bukuTamu->datang_by = null;
+                $bukuTamu->save();
+                $message = 'Batal Datang berhasil dikonfirmasi';
+                break;
+
+            case 'pulang':
+                $bukuTamu->pulang = now();
+                $bukuTamu->pulang_by = Auth::user()->id;
+                $bukuTamu->save();
+                $message = 'Pulang berhasil dikonfirmasi';
+                break;
+
+            case 'batal pulang':
+                $bukuTamu->pulang = null;
+                $bukuTamu->pulang_by = null;
+                $bukuTamu->save();
+                $message = 'Batal Pulang berhasil dikonfirmasi';
+                break;
+        }
+
+        $konfirmasi = view('buku_tamu._konfirmasi', compact('bukuTamu'))->render();
+        return response()->json(['status' => 'success', 'message' => $message, 'render_table' => $konfirmasi]);
+    }
+
+    private function uploadFoto(Request $request, BukuTamu $bukuTamu, $field)
+    {
+        if ($request->hasFile($field)) {
+            $image = $request->file($field);
+            $imageName = $bukuTamu->token . '_' . time() . '.jpeg';
+            $destinationPath = "bukutamu/$field/" . $imageName;
+            $manager = new ImageManager(new Driver());
+            $image = $manager->read($image);
+            if (Storage::disk('local')->exists("bukutamu/$field/" . $bukuTamu->$field)) {
+                Storage::disk('local')->delete("bukutamu/$field/" . $bukuTamu->$field);
+            }
+            Storage::disk('local')->put($destinationPath, $image->encodeByExtension('jpeg', quality: 20));
+            return $imageName;
+        }
+        return null;
+    }
+
+    private function deleteFoto(BukuTamu $bukuTamu, $field)
+    {
+        if (Storage::disk('local')->exists("bukutamu/$field/" . $bukuTamu->$field)) {
+            Storage::disk('local')->delete("bukutamu/$field/" . $bukuTamu->$field);
+        }
+        return null;
+    }
+
+    public function getFoto(Request $request, string $id)
+    {
+        $field = $request->foto;
+        $bukuTamu = BukuTamu::findOrFail($id);
+        if (Storage::disk('local')->exists("bukutamu/$field/" . $bukuTamu->$field)) {
+            return response()->file(storage_path("app/private/bukutamu/$field/" . $bukuTamu->$field), [
+                'Content-Type' => 'image/jpeg',
+                'Content-Disposition' => 'inline',
+            ]);
+        }
+        return abort(404);
     }
 
     /**

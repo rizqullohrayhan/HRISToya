@@ -70,28 +70,26 @@
                                 </div>
                                 <div class="col-md-12">
                                     <div class="form-group @error('tgl_awal') has-error @enderror">
-                                        <label for="tanggal">Tanggal Cuti<span class="text-danger">*</span></label>
+                                        <label for="tanggal">Tanggal Awal Cuti<span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control flatpicker" id="tgl_awal" name="tgl_awal" value="{{ old('tgl_awal', $surat->tgl_awal) }}" readonly>
+                                        @error('tgl_awal')
+                                        <small class="form-text text-muted text-danger">
+                                            {{ $message }}
+                                        </small>
+                                        @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-12">
+                                    <div class="form-group @error('tgl_akhir') has-error @enderror">
+                                        <label for="tanggal">Tanggal Akhir Cuti<span class="text-danger">*</span></label>
                                         <div class="input-group">
-                                            <input type="text" class="form-control flatpicker" id="tgl_awal" name="tgl_awal" value="{{ old('tgl_awal', \Carbon\Carbon::createFromFormat('Y-m-d', $surat->tgl_awal)->format('d/m/Y')) }}" readonly>
-                                            <span class="input-group-text">Sampai</span>
-                                            <input type="text" class="form-control flatpicker" id="tgl_akhir" name="tgl_akhir" value="{{ old('tgl_akhir', \Carbon\Carbon::createFromFormat('Y-m-d', $surat->tgl_akhir)->format('d/m/Y')) }}" readonly>
+                                            <input type="text" class="form-control flatpicker" id="tgl_akhir" name="tgl_akhir" value="{{ old('tgl_akhir', $surat->tgl_akhir) }}" readonly>
                                         </div>
-                                        <div class="row">
-                                            <div class="col-6">
-                                                @error('tgl_awal')
-                                                <small class="form-text text-muted text-danger">
-                                                    {{ $message }}
-                                                </small>
-                                                @enderror
-                                            </div>
-                                            <div class="col-6">
-                                                @error('tgl_akhir')
-                                                <small class="form-text text-muted text-danger">
-                                                    {{ $message }}
-                                                </small>
-                                                @enderror
-                                            </div>
-                                        </div>
+                                        @error('tgl_akhir')
+                                        <small class="form-text text-muted text-danger">
+                                            {{ $message }}
+                                        </small>
+                                        @enderror
                                     </div>
                                 </div>
                                 <div class="col-md-6">

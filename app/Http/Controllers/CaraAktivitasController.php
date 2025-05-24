@@ -8,6 +8,17 @@ use Illuminate\Http\Request;
 class CaraAktivitasController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view cara aktivitas')->only(['index', 'show']);
+        $this->middleware('permission:add cara aktivitas')->only(['create', 'store']);
+        $this->middleware('permission:edit cara aktivitas')->only(['edit', 'update']);
+        $this->middleware('permission:delete cara aktivitas')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()

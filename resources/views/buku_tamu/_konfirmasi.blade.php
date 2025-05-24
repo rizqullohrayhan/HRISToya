@@ -1,20 +1,3 @@
-@extends('template.main')
-
-@section('content')
-<div class="container">
-    <div class="page-inner">
-        {{-- <div class="page-header">
-            <h4 class="page-title">Tamu</h4>
-        </div> --}}
-        <div class="row">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <div class="d-flex align-items-center">
-                            <h4 class="card-title">Detail Kunjungan</h4>
-                        </div>
-                    </div>
-                    <div class="card-body">
                         <table class="table table-striped mt-3">
                             <tbody>
                                 <tr>
@@ -92,121 +75,30 @@
                                 <tr>
                                     <td colspan="2">
                                         <div class="d-flex flex-wrap gap-2 justify-content-start">
-                                            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#QrCodeModal">QR Code</button>
-                                            @can('edit buku tamu')
-                                            <a href="{{ route('bukutamu.edit', $bukuTamu->id) }}" class="btn btn-warning"><i class="fa fa-pen"></i>&nbsp;Edit</a>
+                                            @can('confirm kedatangan tamu')
+                                                @if (is_null($bukuTamu->datang))
+                                                    <button type="button" data-id="{{$bukuTamu->id}}" id="btn-datang" class="btn btn-success">
+                                                        <i class="fa fa-check"></i>&nbsp;Kedatangan
+                                                    </button>
+                                                @elseif (is_null($bukuTamu->pulang) && ($bukuTamu->datang_by == auth()->user()->id || auth()->user()->hasRole('ADM')))
+                                                    <button type="button" data-id="{{$bukuTamu->id}}" id="btn-batal-datang" class="btn btn-danger">
+                                                        <i class="fas fa-times"></i>&nbsp;Batalkan Kedatangan
+                                                    </button>
+                                                @endif
                                             @endcan
-                                            @can('delete buku tamu')
-                                            <button data-id="{{$bukuTamu->id}}" class="btn btn-danger btn-delete"><i class="fa fa-trash"></i>&nbsp;Hapus</a>
+                                            @can('confirm pulang tamu')
+                                                @if ($bukuTamu->datang && is_null($bukuTamu->pulang))
+                                                    <button type="button" data-id="{{$bukuTamu->id}}" id="btn-pulang" class="btn btn-warning">
+                                                        <i class="fas fa-sign-out-alt"></i>&nbsp;Pulang
+                                                    </button>
+                                                @elseif ($bukuTamu->pulang && ($bukuTamu->pulang_by == auth()->user()->id || auth()->user()->hasRole('ADM')))
+                                                    <button type="button" data-id="{{$bukuTamu->id}}" id="btn-batal-pulang" class="btn btn-danger">
+                                                        <i class="fas fa-times"></i>&nbsp;Batalkan Pulang
+                                                    </button>
+                                                @endif
                                             @endcan
                                         </div>
                                     </td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-@include('modal.qrcode')
-@endsection
-
-@section('js')
-<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-<script>
-    const url = "{{ $url }}";
-
-    const qrcode = new QRCode("qrcode", {
-        text: url,
-        width: 300,
-        height: 300,
-    });
-
-    function downloadQR() {
-        window.location.href = "{{ route('qrcode') }}?url="+url;
-    }
-
-    $('.btn-delete').on('click', function(){
-        swal({
-            title: 'Apakah Anda yakin?',
-            text: "Anda tidak bisa mengembalikan data ini!",
-            type: 'warning',
-            buttons:{
-                confirm: {
-                    text : 'Ya, Hapus!',
-                    className : 'btn btn-success'
-                },
-                cancel: {
-                    visible: true,
-                    text : 'Tidak, batal!',
-                    className: 'btn btn-danger'
-                },
-            },
-            dangerMode: true
-        }).then((willDelete) => {
-            if (willDelete) {
-                let id = $(this).data("id");
-                let url = '{{ route("bukutamu.destroy", ["bukutamu" => "__ID__"]) }}';
-                url = url.replace("__ID__", id);
-
-                $.ajax({
-                    url: url,
-                    type: "POST",
-                    headers: {
-                        "X-CSRF-TOKEN": "{{ csrf_token() }}"
-                    },
-                    beforeSend: function () {
-                        swal({
-                            title: "Mohon Tunggu",
-                            text: "Sedang memproses...",
-                            buttons: false,
-                            closeOnClickOutside: false,
-                            closeOnEsc: false,
-                            icon: "info"
-                        });
-                    },
-                    success: function (res) {
-                        swal({
-                            title: "Berhasil!",
-                            text: res.message,
-                            icon: "success",
-                            button: {
-                                text: "OK",
-                                className: "btn btn-success"
-                            }
-                        }).then(() => {
-                            window.location.href = '{{route("aktivitas.index")}}'
-                        });
-                    },
-                    error: function (xhr) {
-                        let err = JSON.parse(xhr.responseText);
-                        swal({
-                            title: "Gagal!",
-                            text: err.message,
-                            icon: "error",
-                            button: {
-                                text: "OK",
-                                className: "btn btn-danger"
-                            }
-                        });
-                    },
-                    cache: false,
-                    contentType: false,
-                    processData: false,
-                });
-            } else {
-                swal("Data batal dihapus!", {
-                    buttons : {
-                        confirm : {
-                            className: 'btn btn-success'
-                        }
-                    }
-                });
-            }
-        });
-    })
-</script>
-
-@endsection

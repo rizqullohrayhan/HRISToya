@@ -10,6 +10,17 @@ use Illuminate\Support\Facades\Storage;
 class MasterDokumenController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view master dokumen')->only(['index', 'show', 'download']);
+        $this->middleware('permission:add master dokumen')->only(['create', 'store']);
+        $this->middleware('permission:edit master dokumen')->only(['edit', 'update']);
+        $this->middleware('permission:delete master dokumen')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()

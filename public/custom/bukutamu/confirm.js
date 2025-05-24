@@ -2,19 +2,19 @@ $(document).ready(function() {
     const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
     const confirmUrl = window.Laravel.url;
 
-    $('#btn-datang').on('click', function() {
+    $(document).on('click', '#btn-datang', function() {
         $('#modalKonfirmasi').modal('show');
     })
 
-    $('#btn-batal-datang').on('click', function() {
+    $(document).on('click', '#btn-batal-datang', function() {
         sendConfirm('Semua foto terkait kunjungan ini akan dihapus', 'warning', 'Ya, Batalkan', 'batal datang');
     })
 
-    $('#btn-pulang').on('click', function() {
+    $(document).on('click', '#btn-pulang', function() {
         sendConfirm('Konfirmasi tamu kunjugan telah pulang', 'warning', 'Ya, Konfirmasi', 'pulang');
     })
 
-    $('#btn-batal-pulang').on('click', function() {
+    $(document).on('click', '#btn-batal-pulang', function() {
         sendConfirm('Konfirmasi tamu kunjugan belum pulang', 'warning', 'Ya, Konfirmasi', 'batal pulang');
     })
 
@@ -22,6 +22,9 @@ $(document).ready(function() {
         e.preventDefault();
         const form = this;
         const formData = new FormData(form);
+
+        $('#add-rencana-form .invalid-feedback').remove();
+        $('#add-rencana-form .is-invalid').removeClass('is-invalid');
 
         $.ajax({
             url: form.action,
@@ -31,7 +34,16 @@ $(document).ready(function() {
             contentType: false,
             success: function(res) {
                 $('#modalKonfirmasi').modal('hide');
-                window.location.reload();
+                swal({
+                    title: "Berhasil!",
+                    text: res.message,
+                    icon: "success",
+                    button: {
+                        text: "OK",
+                        className: "btn btn-success"
+                    }
+                });
+                $('#cardKonfirmasi').html(res.render_table);
             },
             error: function(res) {
                 if (res.status === 422) {
@@ -87,7 +99,7 @@ $(document).ready(function() {
                         "X-CSRF-TOKEN": csrfToken
                     },
                     data: {
-                        confirm: confirm,
+                        confirm: dataConfirm,
                     },
                     beforeSend: function () {
                         swal({
@@ -108,10 +120,8 @@ $(document).ready(function() {
                                 text: "OK",
                                 className: "btn btn-success"
                             }
-                        }).then(() => {
-                            tableMengetahui.ajax.reload();
-                            $('#rekapKontrakPengiriman').html(res.rekap_html);
-                        });
+                        })
+                        $('#cardKonfirmasi').html(res.render_table);
                     },
                     error: function (xhr) {
                         let err = JSON.parse(xhr.responseText);
@@ -125,9 +135,6 @@ $(document).ready(function() {
                             }
                         });
                     },
-                    cache: false,
-                    contentType: false,
-                    processData: false,
                 });
             } else {
                 swal("Data batal dihapus!", {

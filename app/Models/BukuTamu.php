@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class BukuTamu extends Model
 {
@@ -17,6 +18,26 @@ class BukuTamu extends Model
                 $model->token = Str::uuid(); // Buat UUID otomatis
             }
         });
+    }
+
+    /**
+     * Get the confirmDatang that owns the BukuTamu
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function confirmDatang()
+    {
+        return $this->belongsTo(User::class, 'datang_by', 'id');
+    }
+
+    /**
+     * Get the confirmPulang that owns the BukuTamu
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function confirmPulang()
+    {
+        return $this->belongsTo(User::class, 'pulang_by', 'id');
     }
 
     /**

@@ -8,6 +8,17 @@ use Illuminate\Http\Request;
 class KantorController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view kantor')->only(['index', 'show']);
+        $this->middleware('permission:add kantor')->only(['create', 'store']);
+        $this->middleware('permission:edit kantor')->only(['edit', 'update']);
+        $this->middleware('permission:delete kantor')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()

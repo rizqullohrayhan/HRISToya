@@ -116,9 +116,20 @@
                                     </div>
                                 </div>
                                 <div class="col-md-6">
+                                    <div class="form-group @error('tahun') has-error @enderror">
+                                        <label for="tahun">Tahun</label>
+                                        <input type="number" class="form-control" name="tahun" id="tahun" value="{{ old('tahun', $kontrak->tahun) }}">
+                                        @error('tahun')
+                                        <small class="form-text text-muted text-danger">
+                                            {{ $message }}
+                                        </small>
+                                        @enderror
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
                                     <div class="form-group @error('tgl_mulai_kirim') has-error @enderror">
                                         <label for="tgl_mulai_kirim">Tanggal Mulai Kirim<span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control flatpicker" id="tgl_mulai_kirim" name="tgl_mulai_kirim" value="{{ old('tgl_mulai_kirim', $kontrak->tgl_mulai_kirim ? \Carbon\Carbon::parse($kontrak->tgl_mulai_kirim)->format('dm/Y') : '') }}" readonly>
+                                        <input type="text" class="form-control flatpicker" id="tgl_mulai_kirim" name="tgl_mulai_kirim" value="{{ old('tgl_mulai_kirim', $kontrak->tgl_mulai_kirim) }}" readonly>
                                         @error('tgl_mulai_kirim')
                                         <small class="form-text text-muted text-danger">
                                             {{ $message }}
@@ -157,7 +168,7 @@
                                 <div class="col-md-6">
                                     <div class="form-group @error('batas_kirim') has-error @enderror">
                                         <label for="batas_kirim">Batas Kirim<span class="text-danger">*</span></label>
-                                        <input type="text" class="form-control flatpicker" name="batas_kirim" id="batas_kirim" value="{{ old('batas_kirim', $kontrak->batas_kirim ? \Carbon\Carbon::parse($kontrak->batas_kirim)->format('dm/Y') : '') }}">
+                                        <input type="text" class="form-control flatpicker" name="batas_kirim" id="batas_kirim" value="{{ old('batas_kirim', $kontrak->batas_kirim) }}">
                                         @error('batas_kirim')
                                         <small class="form-text text-muted text-danger">
                                             {{ $message }}

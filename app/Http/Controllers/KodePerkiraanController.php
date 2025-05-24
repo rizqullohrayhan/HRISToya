@@ -8,6 +8,17 @@ use Illuminate\Http\Request;
 class KodePerkiraanController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view kode perkiraan')->only(['index', 'show']);
+        $this->middleware('permission:add kode perkiraan')->only(['create', 'store']);
+        $this->middleware('permission:edit kode perkiraan')->only(['edit', 'update']);
+        $this->middleware('permission:delete kode perkiraan')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()

@@ -16,39 +16,66 @@ class KontrakPengirimanController extends Controller
     use KontrakPengirimanTrait;
 
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view kontrak pengiriman')->only(['index', 'getKontrakPengirimanData', 'show', 'buildActionButtons', 'cetak']);
+        $this->middleware('permission:add kontrak pengiriman')->only(['create', 'store']);
+        $this->middleware('permission:edit kontrak pengiriman')->only(['edit', 'update']);
+        $this->middleware('permission:delete kontrak pengiriman')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request)
     {
         if ($request->ajax()) {
-            return $this->getKontrakPengirimanData();
+            return $this->getKontrakPengirimanData($request);
         }
 
-        return view('pengiriman.index');
+        $data = [
+            'start' => Carbon::now()->startOfMonth()->format('d/m/Y'),
+            'end' => Carbon::now()->endOfMonth()->format('d/m/Y'),
+        ];
+        return view('pengiriman.index', $data);
     }
 
-    private function getKontrakPengirimanData()
+    private function getKontrakPengirimanData(Request $request)
     {
+        [$start, $end] = $this->parseDateRange($request);
         $authUser = Auth::user();
+
+        $kontrakPengiriman = MasterKontrakPengiriman::whereBetween('tgl_mulai_kirim', [$start, $end]);
+
         if ($authUser->hasRole('ADM')) {
-            $kontrakPengiriman = MasterKontrakPengiriman::get();
+            $kontrakPengiriman = $kontrakPengiriman->get();
         } else {
-            $kontrakPengiriman = MasterKontrakPengiriman::where('created_at', $authUser->id)->orWhere('dibuat_id', $authUser->id)->get();
+            $kontrakPengiriman = $kontrakPengiriman->where(function ($query) use ($authUser) {
+                $query->where('created_by', $authUser->id)->orWhere('dibuat_id', $authUser->id);
+            })->get();
         }
 
         return datatables()->of($kontrakPengiriman)
             ->addIndexColumn()
-            ->addColumn('action', function ($row) use ($authUser) {
-                return $this->buildActionButtons($row, $authUser);
-            })
-            ->editColumn('tgl_mulai_kirim', function ($row) {
-                return Carbon::parse($row->tgl_mulai_kirim)->format('d/m/Y');
-            })
-            ->editColumn('batas_kirim', function ($row) {
-                return Carbon::parse($row->batas_kirim)->format('d/m/Y');
-            })
+            ->addColumn('action', fn($row) => $this->buildActionButtons($row, $authUser))
+            ->editColumn('tgl_mulai_kirim', fn($row) => Carbon::parse($row->tgl_mulai_kirim)->format('d/m/Y'))
+            ->editColumn('batas_kirim', fn($row) => Carbon::parse($row->batas_kirim)->format('d/m/Y'))
             ->rawColumns(['action', 'tgl_mulai_kirim', 'batas_kirim'])
             ->make(true);
+    }
+
+    private function parseDateRange(Request $request): array
+    {
+        try {
+            $start = Carbon::createFromFormat('d/m/Y', $request->startdate)->format('Y-m-d');
+            $end = Carbon::createFromFormat('d/m/Y', $request->enddate)->format('Y-m-d');
+        } catch (\Exception $e) {
+            abort(422, 'Format tanggal tidak valid');
+        }
+
+        return [$start, $end];
     }
 
     private function buildActionButtons($row, $authUser)
@@ -59,7 +86,7 @@ class KontrakPengirimanController extends Controller
             </a>
         ';
 
-        if (($authUser->id == $row->user_id && $authUser->hasPermissionTo('edit kontrak pengiriman')) || $authUser->hasRole('ADM')) {
+        if (($authUser->id == $row->user_id && $authUser->can('edit kontrak pengiriman')) || $authUser->hasRole('ADM')) {
             $btn .= '
                 <a href="' . route('kontrak.edit', $row->id) . '" title="Edit" class="btn btn-link btn-warning">
                     <i class="fa fa-edit"></i>&nbsp;Edit
@@ -67,7 +94,7 @@ class KontrakPengirimanController extends Controller
             ';
         }
 
-        if (($authUser->id == $row->user_id && $authUser->hasPermissionTo('delete kontrak pengiriman')) || $authUser->hasRole('ADM')) {
+        if (($authUser->id == $row->user_id && $authUser->can('delete kontrak pengiriman')) || $authUser->hasRole('ADM')) {
             $btn .= '
                 <button type="button" data-id="' . $row->id . '" title="Hapus Kontrak" class="btn btn-link btn-danger btn-destroy">
                     <i class="fa fa-times"></i>&nbsp;Hapus
@@ -102,6 +129,10 @@ class KontrakPengirimanController extends Controller
      */
     public function store(Request $request)
     {
+        // $request->merge([
+        //     'tgl_mulai_kirim' => $request->tgl_mulai_kirim ? Carbon::createFromFormat('d/m/Y', $request->tgl_mulai_kirim)->format('Y-m-d') : null,
+        //     'batas_kirim' => $request->batas_kirim ? Carbon::createFromFormat('d/m/Y', $request->batas_kirim)->format('Y-m-d') : null,
+        // ]);
         $request->validate([
             'perusahaan' => ['required', 'string', 'max:255'],
             'customer' => ['required', 'string', 'max:255'],
@@ -109,20 +140,45 @@ class KontrakPengirimanController extends Controller
             'barang' => ['required', 'string', 'max:255'],
             'kuantitas' => ['required', 'string', 'max:255'],
             'semester' => ['nullable', 'string', 'max:255'],
-            'tgl_mulai_kirim' => ['required', 'date_format:d/m/Y'],
+            'tahun' => ['nullable', 'integer'],
+            'tgl_mulai_kirim' => ['required', 'date'],
             'jangka_waktu_kirim' => ['required', 'string'],
-            'batas_kirim' => ['required', 'date_format:d/m/Y'],
+            'batas_kirim' => ['required', 'date', 'after_or_equal:tgl_mulai_kirim'],
             'kebun' => ['required', 'array', 'min:1'],
             'kebun.*.vendor' => ['nullable', 'string', 'min:255'],
             'kebun.*.kebun' => ['required', 'string', 'max:255'],
             'kebun.*.kontrak' => ['required', 'integer'],
+        ], [
+            'required' => ':attribute wajib diisi',
+            'string' => ':attribute harus berupa teks',
+            'max' => ':attribute tidak boleh lebih dari :max karakter',
+            'integer' => ':attribute harus berupa angka',
+            'date' => ':attribute harus berupa tanggal yang valid',
+            'after_or_equal' => ':attribute harus setelah atau sama dengan :date',
+        ], [
+            'perusahaan' => 'Perusahaan',
+            'customer' => 'Customer',
+            'no_kontrak' => 'No Kontrak',
+            'barang' => 'Barang',
+            'kuantitas' => 'Kuantitas',
+            'semester' => 'Semester',
+            'tahun' => 'Tahun',
+            'tgl_mulai_kirim' => 'Tanggal Mulai Kirim',
+            'jangka_waktu_kirim' => 'Jangka Waktu Kirim',
+            'batas_kirim' => 'Batas Kirim',
+            'kebun' => 'Kebun',
         ]);
 
-        $tgl_mulai_kirim = Carbon::createFromFormat('d/m/Y', $request->tgl_mulai_kirim)->format('Y-m-d');
-        $batas_kirim = Carbon::createFromFormat('d/m/Y', $request->batas_kirim)->format('Y-m-d');
+        $kebunList = collect($request->kebun)->pluck('kebun');
+        $duplicates = $kebunList->duplicates();
+
+        if ($duplicates->isNotEmpty()) {
+            $duplicateNames = $duplicates->implode(', ');
+            return back()->withErrors([
+                'kebun' => "Terdapat data kebun yang duplikat: $duplicateNames."
+            ])->withInput();
+        }
         $request->merge([
-            'tgl_mulai_kirim' => $tgl_mulai_kirim,
-            'batas_kirim' => $batas_kirim,
             'created_by' => Auth::user()->id,
         ]);
 
@@ -164,20 +220,33 @@ class KontrakPengirimanController extends Controller
             'barang' => ['required', 'string', 'max:255'],
             'kuantitas' => ['required', 'string', 'max:255'],
             'semester' => ['nullable', 'string', 'max:255'],
-            'tgl_mulai_kirim' => ['required', 'date_format:d/m/Y'],
+            'tahun' => ['nullable', 'integer'],
+            'tgl_mulai_kirim' => ['required', 'date'],
             'jangka_waktu_kirim' => ['required', 'string'],
-            'batas_kirim' => ['required', 'date_format:d/m/Y'],
+            'batas_kirim' => ['required', 'date', 'after_or_equal:tgl_mulai_kirim'],
             'kebun' => ['required', 'array', 'min:1'],
             'kebun.*.vendor' => ['nullable', 'string', 'min:255'],
             'kebun.*.kebun' => ['required', 'string', 'max:255'],
             'kebun.*.kontrak' => ['required', 'integer'],
-        ]);
-
-        $tgl_mulai_kirim = Carbon::createFromFormat('d/m/Y', $request->tgl_mulai_kirim)->format('Y-m-d');
-        $batas_kirim = Carbon::createFromFormat('d/m/Y', $request->batas_kirim)->format('Y-m-d');
-        $request->merge([
-            'tgl_mulai_kirim' => $tgl_mulai_kirim,
-            'batas_kirim' => $batas_kirim,
+        ], [
+            'required' => ':attribute wajib diisi',
+            'string' => ':attribute harus berupa teks',
+            'max' => ':attribute tidak boleh lebih dari :max karakter',
+            'integer' => ':attribute harus berupa angka',
+            'date' => ':attribute harus berupa tanggal yang valid',
+            'after_or_equal' => ':attribute harus setelah atau sama dengan :date',
+        ], [
+            'perusahaan' => 'Perusahaan',
+            'customer' => 'Customer',
+            'no_kontrak' => 'No Kontrak',
+            'barang' => 'Barang',
+            'kuantitas' => 'Kuantitas',
+            'semester' => 'Semester',
+            'tahun' => 'Tahun',
+            'tgl_mulai_kirim' => 'Tanggal Mulai Kirim',
+            'jangka_waktu_kirim' => 'Jangka Waktu Kirim',
+            'batas_kirim' => 'Batas Kirim',
+            'kebun' => 'Kebun',
         ]);
 
         $masterKontrak = MasterKontrakPengiriman::firstOrFail('id', $request->id);

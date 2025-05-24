@@ -17,23 +17,39 @@ use Intervention\Image\ImageManager;
 class NotulenRapatController extends Controller
 {
     /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view notulen rapat')->only(['index', 'data', 'show', 'otoritas', 'cetak']);
+        $this->middleware('permission:add notulen rapat')->only(['create', 'store', 'otoritas']);
+        $this->middleware('permission:edit notulen rapat')->only(['edit', 'update', 'otoritas', 'allowUpdate']);
+        $this->middleware('permission:delete notulen rapat')->only('destroy');
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index()
     {
-        return view('notulen_rapat.index');
+        $data = [
+            'start' => Carbon::now()->startOfMonth()->format('d/m/Y'),
+            'end' => Carbon::now()->endOfMonth()->format('d/m/Y'),
+        ];
+        return view('notulen_rapat.index', $data);
     }
 
-    public function data()
+    public function data(Request $request)
     {
+        [$start, $end] = $this->parseDateRange($request);
         $authUser = Auth::user();
+
+        $notulenRapat = NotulenRapat::whereBetween('tanggal', [$start, $end]);
+
         if ($authUser->hasRole('ADM')) {
-            $notulenRapat = NotulenRapat::get();
+            $notulenRapat = $notulenRapat->get();
         } else {
-            // $notulenRapat = NotulenRapat::whereHas('daftarHadir', function ($query) use ($authUser) {
-            //                                 $query->where('user_id', $authUser->id);
-            //                             })->orWhere('created_by', $authUser->id)->get();
-            $notulenRapat = NotulenRapat::where(function ($query) use ($authUser) {
+            $notulenRapat = $notulenRapat->where(function ($query) use ($authUser) {
                 $query->whereHas('daftarHadir', function ($q) use ($authUser) {
                     $q->where('user_id', $authUser->id);
                 })->orWhere('created_by', $authUser->id);
@@ -42,53 +58,53 @@ class NotulenRapatController extends Controller
 
         return datatables()->of($notulenRapat)
             ->addIndexColumn()
-            ->addColumn('action', function ($row) use ($authUser) {
-                $isAdmin = $authUser->hasRole('ADM');
-                $isOwnerOrCreator = $authUser->id == $row->dibuat_id || $authUser->id == $row->created_by;
-                $isEditable = is_null($row->diperiksa_at);
-                $btn = '
-                            <a href="' . route('notulen_rapat.show', $row->id) . '" title="Edit" class="btn btn-link btn-primary" data-original-title="Edit">
-                                <i class="fa fa-eye"></i>&nbsp;Show
-                            </a>
-                        ';
-                if (
-                    $isAdmin ||
-                    ($authUser->hasPermissionTo('edit notulen rapat') && $isOwnerOrCreator && $isEditable)
-                ) {
-                    $btn .= '
-                                <a href="' . route('notulen_rapat.edit', $row->id) . '" title="Edit" class="btn btn-link btn-warning" data-original-title="Edit">
-                                    <i class="fa fa-edit"></i>&nbsp;Edit
-                                </a>
-                            ';
-                }
-                if (
-                    $isAdmin ||
-                    ($authUser->hasPermissionTo('delete notulen rapat') && $isOwnerOrCreator && $isEditable)
-                ) {
-                    $btn .= '
-                                <button type="button" data-id="' . $row->id . '" title="Hapus" class="btn btn-link btn-danger btn-destroy" data-original-title="Remove">
-                                    <i class="fa fa-times"></i>&nbsp;Hapus
-                                </button>
-                            ';
-                }
-                return '
-                            <div class="form-button-action">
-                                <div class="btn-group dropend">
-                                    <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                                        <i class="fa fa-align-left"></i>
-                                    </button>
-                                    <ul class="dropdown-menu" role="menu">
-                                        ' . $btn . '
-                                    </ul>
-                                </div>
-                            </div>
-                        ';
-            })
-            ->editColumn('tanggal', function ($row) {
-                return $row->tanggal ? Carbon::parse($row->tanggal)->format('d/m/Y H:i') : '';
-            })
+            ->addColumn('action', fn($row) => $this->buildActionButtons($row, $authUser))
+            ->editColumn('tanggal', fn($row) => $row->tanggal ? Carbon::parse($row->tanggal)->format('d/m/Y H:i') : '')
             ->rawColumns(['action', 'tanggal'])
             ->make(true);
+    }
+
+    private function parseDateRange(Request $request): array
+    {
+        try {
+            $start = Carbon::createFromFormat('d/m/Y', $request->startdate)->format('Y-m-d');
+            $end = Carbon::createFromFormat('d/m/Y', $request->enddate)->format('Y-m-d');
+        } catch (\Exception $e) {
+            abort(422, 'Format tanggal tidak valid');
+        }
+
+        return [$start, $end];
+    }
+
+    private function buildActionButtons($row, $authUser): string
+    {
+        $isAdmin = $authUser->hasRole('ADM');
+        $isOwnerOrCreator = $authUser->id == $row->dibuat_id || $authUser->id == $row->created_by;
+        $isEditable = is_null($row->diperiksa_at);
+        $buttons = '';
+
+        $buttons .= '<a href="'. route('notulen_rapat.show', $row->id) .'" class="btn btn-link btn-primary"><i class="fa fa-eye"></i> Show</a>';
+
+        if ($isAdmin || ($authUser->can('edit notulen rapat') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<a href="'. route('notulen_rapat.edit', $row->id) .'" class="btn btn-link btn-warning"><i class="fa fa-edit"></i> Edit</a>';
+        }
+
+        if ($isAdmin || ($authUser->can('delete notulen rapat') && $isOwnerOrCreator && $isEditable)) {
+            $buttons .= '<button type="button" data-id="'. $row->id .'" class="btn btn-link btn-danger btn-destroy"><i class="fa fa-times"></i> Hapus</button>';
+        }
+
+        return '
+            <div class="form-button-action">
+                <div class="btn-group dropend">
+                    <button class="btn btn-icon btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fa fa-align-left"></i>
+                    </button>
+                    <ul class="dropdown-menu" role="menu">
+                        '.$buttons.'
+                    </ul>
+                </div>
+            </div>
+        ';
     }
 
     /**

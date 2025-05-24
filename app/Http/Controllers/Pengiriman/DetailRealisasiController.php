@@ -12,8 +12,18 @@ use Illuminate\Support\Facades\Auth;
 
 class DetailRealisasiController extends Controller
 {
-
     use KontrakPengirimanTrait;
+
+    /**
+     * Get the middleware that should be assigned to the controller.
+     */
+    public function __construct()
+    {
+        $this->middleware('permission:view detail realisasi pengiriman')->only(['index', 'getDetailRealisasiData', 'show', 'buildActionButtons']);
+        $this->middleware('permission:add detail realisasi pengiriman')->only(['create', 'store']);
+        $this->middleware('permission:edit detail realisasi pengiriman')->only(['edit', 'inlineEdit', 'update']);
+        $this->middleware('permission:delete detail realisasi pengiriman')->only('destroy');
+    }
 
     /**
      * Display a listing of the resource.
@@ -82,15 +92,15 @@ class DetailRealisasiController extends Controller
 
         $btn = '';
 
-        if ($authUser->hasRole('ADM') || $authUser->hasPermissionTo('edit detail realisasi pengiriman')) {
-            $btn .= '
-                <a href="' . route('detail_realisasi.edit', $row->id) . '?kontrak='. $kontrakId .'" title="Edit" class="btn btn-link btn-warning">
-                    <i class="fa fa-edit"></i>&nbsp;Edit
-                </a>
-            ';
-        }
+        // if ($authUser->hasRole('ADM') || $authUser->hasPermissionTo('edit detail realisasi pengiriman')) {
+        //     $btn .= '
+        //         <a href="' . route('detail_realisasi.edit', $row->id) . '?kontrak='. $kontrakId .'" title="Edit" class="btn btn-link btn-warning">
+        //             <i class="fa fa-edit"></i>&nbsp;Edit
+        //         </a>
+        //     ';
+        // }
 
-        if ($authUser->hasRole('ADM') || $authUser->hasPermissionTo('delete detail realisasi pengiriman')) {
+        if ($authUser->hasRole('ADM') || $authUser->can('delete detail realisasi pengiriman')) {
             $btn .= '
                 <button type="button" data-id="' . $row->id . '" title="Hapus Kontrak" class="btn btn-link btn-danger btn-destroy">
                     <i class="fa fa-times"></i>&nbsp;Hapus
